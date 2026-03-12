@@ -22,4 +22,4 @@ jobs:
         script: |
           # cd ${{ secrets.VPS_APP_PATH }}
           cd /home/adisunjana4/LoopLive-AI-Livestream-System
-          ./scripts/deploy.sh
+          bash scripts/deploy.sh
