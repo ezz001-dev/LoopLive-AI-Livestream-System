@@ -15,14 +15,17 @@ export async function proxy(request: NextRequest) {
 
   // 1.5 IP Whitelisting (Optional Security for VPS)
   const allowedIpsStr = process.env.ALLOWED_IPS;
-  if (allowedIpsStr && (isAdminRoute || isProtectedApiRoute || isAuthRoute)) {
+  // Handle empty or whitespace-only string as disabled
+  if (allowedIpsStr && allowedIpsStr.trim().length > 0 && (isAdminRoute || isProtectedApiRoute || isAuthRoute)) {
     const allowedIps = allowedIpsStr.split(",").map(ip => ip.trim());
     const clientIp = (request as any).ip || request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
     
-    // Skip check for local dev if needed, or just let user define it
+    // Debug log for the admin to see their IP in terminal
+    console.log(`[Security] Client IP Detected: ${clientIp} for path ${pathname}`);
+
     if (clientIp !== "127.0.0.1" && clientIp !== "::1" && !allowedIps.includes(clientIp)) {
       console.warn(`[Security] Blocked unauthorized IP: ${clientIp} attempted access to ${pathname}`);
-      return new NextResponse("Access Denied: Your IP is not whitelisted.", { status: 403 });
+      return new NextResponse(`Access Denied: Your IP (${clientIp}) is not whitelisted. Silakan tambahkan IP ini ke .env di bagian ALLOWED_IPS.`, { status: 403 });
     }
   }
   const token = request.cookies.get("auth_token")?.value;
