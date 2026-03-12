@@ -20,5 +20,6 @@ jobs:
         key: ${{ secrets.VPS_SSH_KEY }}
         port: ${{ secrets.VPS_PORT || 22 }}
         script: |
-          cd ${{ secrets.VPS_APP_PATH }}
+          # cd ${{ secrets.VPS_APP_PATH }}
+          cd /home/adisunjana4/LoopLive-AI-Livestream-System
           ./scripts/deploy.sh
