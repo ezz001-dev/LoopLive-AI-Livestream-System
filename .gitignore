@@ -1,0 +1,16 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/src/generated/prisma
+
+.next/
+
+# PM2 log files
+logs/*.log
+
+# Large media files
+public/videos/
+*.mp4
+*.mkv
+*.mov

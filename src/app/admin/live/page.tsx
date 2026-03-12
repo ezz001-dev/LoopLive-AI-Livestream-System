@@ -1,0 +1,79 @@
+import React from "react";
+
+import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import LiveSessionsHeader from "@/components/admin/LiveSessionsHeader";
+import LiveSessionActions from "@/components/admin/LiveSessionActions";
+
+
+
+export default async function LiveSessionsPage() {
+  const sessions = await prisma.live_sessions.findMany({
+    orderBy: { created_at: "desc" }
+  });
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Live Sessions</h2>
+          <p className="text-slate-400 mt-1">Configure and monitor your AI stream orchestration.</p>
+        </div>
+        <LiveSessionsHeader />
+      </div>
+
+      <div className="bg-slate-900/30 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-sm">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-slate-800 bg-slate-900/50">
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Session Name</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">AI Tone</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Created At</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800">
+            {sessions.map((session) => (
+              <tr key={session.id} className="hover:bg-slate-800/30 transition-colors group">
+                <td className="px-6 py-5">
+                  <Link href={`/admin/live/${session.id}`} className="font-bold text-white hover:text-blue-400 transition-colors text-lg">
+                    {session.title}
+                  </Link>
+                  <p className="text-xs text-slate-500 mt-1 truncate max-w-xs">{session.context_text}</p>
+                </td>
+                <td className="px-6 py-5">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    session.status === 'LIVE' 
+                      ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
+                      : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${session.status === 'LIVE' ? 'bg-red-500 animate-pulse' : 'bg-slate-500'}`} />
+                    {session.status}
+                  </span>
+                </td>
+                <td className="px-6 py-5">
+                  <span className="text-slate-300 font-medium capitalize">{session.ai_tone || 'Professional'}</span>
+                </td>
+                <td className="px-6 py-5 text-slate-500 text-sm">
+                  {new Date(session.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-5 text-right">
+                  <LiveSessionActions sessionId={session.id} initialStatus={session.status} />
+                </td>
+
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+
+        {sessions.length === 0 && (
+          <div className="py-20 text-center text-slate-500 italic">
+            No live sessions configured.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

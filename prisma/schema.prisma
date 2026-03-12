@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model admin_users {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model live_sessions {
+  id                  String          @id @default(uuid())
+  title               String
+  video_id            String
+  video               videos          @relation(fields: [video_id], references: [id])
+  context_text        String?
+  ai_tone             String          @default("friendly")
+  status              String          @default("IDLE") // IDLE, LIVE, STOPPED
+  viewer_count        Int             @default(0)
+  youtube_video_id    String?         // YouTube Video ID for chat polling (e.g. "dQw4w9WgXcQ")
+  youtube_channel_id  String?         // Optional: YouTube Channel ID
+  target_rtmp_url     String?         // External RTMP Server URL (e.g. rtmp://a.rtmp.youtube.com/live2)
+  stream_key          String?         // External Stream Key
+  
+  // Schedule Configuration
+  schedule_enabled        Boolean        @default(false)
+  schedule_type           String         @default("one-time") // "one-time" | "repeat"
+  
+  // One-time Schedule
+  schedule_start_at       DateTime?      // Tanggal & waktu mulai (one-time)
+  schedule_end_at        DateTime?      // Tanggal & waktu selesai (one-time)
+  
+  // Repeat Schedule
+  schedule_days          String?        // JSON array: ["monday","tuesday"]
+  schedule_start_time   String?        // Format HH:mm (misal: "10:00")
+  schedule_end_time     String?        // Format HH:mm (misal: "18:00")
+  schedule_timezone    String         @default("Asia/Jakarta")
+  
+  // Repeat Options
+  schedule_repeat_end    DateTime?      // Kapan repeat berhenti (opsional)
+  
+  // Status
+  last_scheduled_run     DateTime?      // Last time schedule ran
+  
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+  chat_logs           chat_logs[]
+  ai_reply_logs       ai_reply_logs[]
+}
+
+
+model videos {
+  id         String          @id @default(uuid())
+  filename   String
+  file_path  String
+  file_type  String
+  created_at DateTime        @default(now())
+  updated_at DateTime        @updatedAt
+  sessions   live_sessions[]
+}
+
+
+model context_documents {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model chat_logs {
+  id              String        @id @default(uuid())
+  live_session_id String
+  viewer_id       String
+  message         String
+  created_at      DateTime      @default(now())
+  live_session    live_sessions @relation(fields: [live_session_id], references: [id], onDelete: Cascade)
+}
+
+model ai_reply_logs {
+  id              String        @id @default(uuid())
+  live_session_id String
+  chat_id         String?
+  prompt          String
+  reply           String
+  audio_url       String?
+  created_at      DateTime      @default(now())
+  live_session    live_sessions @relation(fields: [live_session_id], references: [id], onDelete: Cascade)
+}

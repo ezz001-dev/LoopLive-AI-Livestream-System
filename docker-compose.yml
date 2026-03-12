@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: looplive-postgres
+    environment:
+      POSTGRES_USER: looplive_user
+      POSTGRES_PASSWORD: looplive_password
+      POSTGRES_DB: looplive_db
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - looplive-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: looplive-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - looplive-network
+
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: looplive-mediamtx
+    ports:
+      - "1935:1935"   # RTMP
+      - "8888:8888"   # HLS
+      - "8889:8889"   # WebRTC
+      - "8554:8554"   # RTSP
+    restart: unless-stopped
+    networks:
+      - looplive-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  looplive-network:
+    driver: bridge
