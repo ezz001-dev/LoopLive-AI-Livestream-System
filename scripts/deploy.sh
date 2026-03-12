@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Configuration
-APP_DIR="/path/to/your/app/LoopLive-AI-Livestream-System" # User should update this
+# APP_DIR="/path/to/your/app/LoopLive-AI-Livestream-System" # User should update this
+APP_DIR="/home/adisunjana4/LoopLive-AI-Livestream-System" # User should update this
 BRANCH="main"
 
 echo "🚀 Starting Deployment..."
