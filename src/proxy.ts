@@ -17,8 +17,9 @@ export async function proxy(request: NextRequest) {
   const allowedIpsStr = process.env.ALLOWED_IPS;
   // Handle empty or whitespace-only string as disabled
   if (allowedIpsStr && allowedIpsStr.trim().length > 0 && (isAdminRoute || isProtectedApiRoute || isAuthRoute)) {
-    // Robustly split and clean IPs (stripping spaces and quotes)
-    const allowedIps = allowedIpsStr.split(",").map(ip => ip.trim().replace(/^["']|["']$/g, ''));
+    // Robust parsing: strip everything except digits, dots, and commas, then split
+    const cleanStr = allowedIpsStr.replace(/[^\d.,]/g, '');
+    const allowedIps = cleanStr.split(",").filter(ip => ip.length > 0);
     
     // Check multiple possible IP headers
     const clientIp = 
@@ -28,9 +29,8 @@ export async function proxy(request: NextRequest) {
         (request as any).ip || 
         "unknown";
     
-    // Debug log using ERROR level so it appears in the user's pm2 logs (stderr)
-    console.error(`[Security] DEBUG: Detected Client IP: [${clientIp}]`);
-    console.error(`[Security] DEBUG: Whitelist Array: [${allowedIps.map(ip => `'${ip}'`).join(", ")}]`);
+    // Explicit server log for comparison
+    console.error(`[Security] IP_CHECK: Client=[${clientIp}] Whitelist=[${allowedIps.join("|")}] Result=${allowedIps.includes(clientIp)}`);
 
     if (clientIp !== "127.0.0.1" && clientIp !== "::1" && !allowedIps.includes(clientIp)) {
       console.warn(`[Security] Blocked unauthorized IP: ${clientIp} attempted access to ${pathname}`);
