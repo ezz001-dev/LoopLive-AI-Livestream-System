@@ -28,8 +28,9 @@ export async function proxy(request: NextRequest) {
         (request as any).ip || 
         "unknown";
     
-    // Debug log for the admin to see their IP and the Whitelist in terminal
-    console.log(`[Security] Whitelist Check: Client IP [${clientIp}] vs Allowed [${allowedIps.join(", ")}]`);
+    // Debug log using ERROR level so it appears in the user's pm2 logs (stderr)
+    console.error(`[Security] DEBUG: Detected Client IP: [${clientIp}]`);
+    console.error(`[Security] DEBUG: Whitelist Array: [${allowedIps.map(ip => `'${ip}'`).join(", ")}]`);
 
     if (clientIp !== "127.0.0.1" && clientIp !== "::1" && !allowedIps.includes(clientIp)) {
       console.warn(`[Security] Blocked unauthorized IP: ${clientIp} attempted access to ${pathname}`);
