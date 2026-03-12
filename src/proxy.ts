@@ -17,11 +17,19 @@ export async function proxy(request: NextRequest) {
   const allowedIpsStr = process.env.ALLOWED_IPS;
   // Handle empty or whitespace-only string as disabled
   if (allowedIpsStr && allowedIpsStr.trim().length > 0 && (isAdminRoute || isProtectedApiRoute || isAuthRoute)) {
-    const allowedIps = allowedIpsStr.split(",").map(ip => ip.trim());
-    const clientIp = (request as any).ip || request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+    // Robustly split and clean IPs (stripping spaces and quotes)
+    const allowedIps = allowedIpsStr.split(",").map(ip => ip.trim().replace(/^["']|["']$/g, ''));
     
-    // Debug log for the admin to see their IP in terminal
-    console.log(`[Security] Client IP Detected: ${clientIp} for path ${pathname}`);
+    // Check multiple possible IP headers
+    const clientIp = 
+        request.headers.get("x-client-ip") ||
+        request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+        request.headers.get("x-real-ip") ||
+        (request as any).ip || 
+        "unknown";
+    
+    // Debug log for the admin to see their IP and the Whitelist in terminal
+    console.log(`[Security] Whitelist Check: Client IP [${clientIp}] vs Allowed [${allowedIps.join(", ")}]`);
 
     if (clientIp !== "127.0.0.1" && clientIp !== "::1" && !allowedIps.includes(clientIp)) {
       console.warn(`[Security] Blocked unauthorized IP: ${clientIp} attempted access to ${pathname}`);
