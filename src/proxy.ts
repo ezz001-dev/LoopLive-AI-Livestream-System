@@ -38,14 +38,17 @@ export async function proxy(request: NextRequest) {
     }
   }
   const token = request.cookies.get("auth_token")?.value;
+  // console.log(`[Security] Token present: ${!!token}`);
 
   // 3. Handle Login/Auth routes (Redirect to admin if already logged in)
   if (isAuthRoute) {
     if (token) {
       try {
         await jwtVerify(token, JWT_SECRET);
+        console.log("[Security] Already logged in, redirecting to /admin");
         return NextResponse.redirect(new URL("/admin", request.url));
       } catch (e) {
+        console.error("[Security] Token invalid on login page, allowing stay");
         // Invalid token, allow access to login
       }
     }
@@ -71,9 +74,10 @@ export async function proxy(request: NextRequest) {
 
     try {
       await jwtVerify(token, JWT_SECRET);
+      // console.log("[Security] JWT Verified successfully");
       return NextResponse.next();
-    } catch (e) {
-      console.error("Middleware Auth Error:", e);
+    } catch (e: any) {
+      console.error(`[Security] Middleware Auth Error: ${e?.message || "Invalid Token"}`);
       if (isAdminRoute) {
         const response = NextResponse.redirect(new URL("/login", request.url));
         response.cookies.delete("auth_token");

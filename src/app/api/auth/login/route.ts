@@ -41,15 +41,19 @@ export async function POST(req: Request) {
     const response = NextResponse.json({ success: true });
     
     // Set HTTP-only cookie
+    // Note: 'secure' is false for now to support non-SSL VPS setups. 
+    // In production with SSL, this should be true.
     response.cookies.set({
       name: "auth_token",
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Changed from production check to false for easier VPS setup
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
+
+    console.log(`[Security] Login success for ${email}, token cookie set.`);
 
     return response;
   } catch (error) {
