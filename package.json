@@ -29,6 +29,7 @@
   "dependencies": {
     "@andresaya/edge-tts": "^1.8.0",
     "@aws-sdk/client-s3": "^3.1008.0",
+    "@aws-sdk/s3-request-presigner": "^3.1008.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.19.2",
     "@tailwindcss/postcss": "^4.2.1",

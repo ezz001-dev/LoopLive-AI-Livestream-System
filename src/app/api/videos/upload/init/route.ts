@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server";
+import { createPresignedVideoUploadUrl, createVideoUploadDraft } from "@/lib/storage";
+import { getStorageProvider } from "@/lib/storage-config";
+
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+export async function POST(req: Request) {
+  try {
+    const { filename, fileType, fileSize } = await req.json();
+
+    if (!filename || typeof filename !== "string") {
+      return NextResponse.json({ error: "filename is required" }, { status: 400 });
+    }
+
+    if (!fileType || typeof fileType !== "string" || !fileType.startsWith("video/")) {
+      return NextResponse.json({ error: "A valid video content type is required" }, { status: 400 });
+    }
+
+    if (!fileSize || typeof fileSize !== "number" || fileSize <= 0) {
+      return NextResponse.json({ error: "fileSize must be a positive number" }, { status: 400 });
+    }
+
+    const draft = createVideoUploadDraft({ filename, fileType, fileSize });
+
+    if (getStorageProvider() !== "r2") {
+      return NextResponse.json({
+        uploadStrategy: "server-proxy",
+        storageProvider: draft.storageProvider,
+      });
+    }
+
+    const uploadUrl = await createPresignedVideoUploadUrl(draft);
+
+    return NextResponse.json({
+      uploadStrategy: "direct-r2",
+      storageProvider: draft.storageProvider,
+      uploadUrl,
+      uploadHeaders: {
+        "Content-Type": draft.fileType || "application/octet-stream",
+      },
+      video: {
+        id: draft.id,
+        filename: draft.originalFilename,
+        file_type: draft.fileType,
+        file_size: draft.fileSize.toString(),
+        storage_provider: draft.storageProvider,
+        storage_key: draft.storageKey,
+        file_path: draft.filePath,
+        public_url: draft.publicUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("Init Video Upload Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to initialize upload" }, { status: 500 });
+  }
+}
