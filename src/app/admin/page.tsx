@@ -39,7 +39,7 @@ export default async function DashboardPage() {
         <LiveSessionsHeader />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div id="tour-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
           <div key={i} className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl hover:border-slate-700 transition-colors group">
             <div className="flex justify-between items-start">
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
             <p className="text-xs mt-2 not-italic">Connection status: WebSocket Active</p>
           </div>
         </div>
-        <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl h-80 flex flex-col pt-6 overflow-hidden">
+        <div id="tour-recent-sessions" className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl h-80 flex flex-col pt-6 overflow-hidden">
           <h3 className="text-lg font-bold text-white mb-4">Recent Sessions</h3>
           <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             {recentSessions.length > 0 ? (
