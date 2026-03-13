@@ -133,3 +133,22 @@ model session_schedules {
   created_at      DateTime      @default(now())
   updated_at      DateTime      @updatedAt
 }
+
+model system_settings {
+  id                    String   @id @default("1")
+  openai_api_key        String?
+  gemini_api_key        String?
+  ai_provider           String   @default("openai")
+  tts_provider          String   @default("openai")
+  yt_channel_handle     String?
+  tiktok_channel_handle String?
+  ai_name               String   @default("Loop")
+  ai_persona            String?  @db.Text
+  ai_tone_default       String   @default("friendly")
+  mediamtx_host         String   @default("localhost")
+  rtmp_port             Int      @default(1935)
+  hls_port              Int      @default(8888)
+  redis_url             String   @default("redis://localhost:6379")
+  max_response_length   Int      @default(150)
+  updated_at            DateTime @updatedAt
+}

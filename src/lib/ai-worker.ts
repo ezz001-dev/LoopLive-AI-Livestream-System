@@ -10,24 +10,9 @@ dotenv.config();
 const redisPub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 const redisSub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
-// Provider Configuration
-const AI_PROVIDER = process.env.AI_PROVIDER || "gemini"; // openai, gemini, sumopod
-const AI_MODEL = process.env.AI_MODEL || "gemini-2.5-flash";
-const SUMOPOD_API_URL = process.env.SUMOPOD_API_URL || "https://ai.sumopod.com";
-const SUMOPOD_API_KEY = process.env.SUMOPOD_API_KEY || "";
+console.log(`[AI-Worker] Starting AI Worker with Dynamic DB Settings...`);
 
-// Initialize clients
-const openai = new OpenAI({ 
-    apiKey: process.env.OPENAI_API_KEY || "sk-dummy-key",
-    baseURL: process.env.OPENAI_BASE_URL // For custom endpoints
-});
-
-const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "gemini-dummy-key");
-
-console.log(`[AI-Worker] Starting AI Worker...`);
-console.log(`[AI-Worker] Provider: ${AI_PROVIDER}, Model: ${AI_MODEL}`);
-
-// Simple RAG & Context Fetcher
+// Simple Context Fetcher
 async function getLiveSessionContext(liveId: string) {
     const session = await prisma.live_sessions.findUnique({
         where: { id: liveId },
@@ -41,45 +26,79 @@ async function getLiveSessionContext(liveId: string) {
     return session;
 }
 
-// --- Provider Implementations ---
+// --- Dynamic Provider Logic ---
 
-async function generateWithOpenAI(systemPrompt: string, userMessage: string): Promise<string> {
-    const completion = await openai.chat.completions.create({
-        model: AI_MODEL,
-        messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage }
-        ],
-        max_tokens: 150,
-    });
-    return completion.choices[0]?.message?.content || "Thanks for stopping by!";
+async function getSystemSettings() {
+    let settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+    if (!settings) {
+        // Fallback to defaults/env if not in DB yet
+        settings = await prisma.system_settings.create({
+            data: {
+                id: "1",
+                ai_provider: process.env.AI_PROVIDER || "openai",
+                openai_api_key: process.env.OPENAI_API_KEY,
+                gemini_api_key: process.env.GEMINI_API_KEY,
+                ai_name: "Loop",
+                ai_persona: "You are an AI Livestreamer named Loop. Respond to followers in a way that is engaging and keeps the conversation flowing.",
+                max_response_length: 150
+            }
+        });
+    }
+    return settings;
 }
 
-async function generateWithGemini(systemPrompt: string, userMessage: string): Promise<string> {
-    const model = gemini.getGenerativeModel({ 
-        model: AI_MODEL,
-        systemInstruction: systemPrompt,
-    });
-    const result = await model.generateContent(userMessage);
-    return result.response.text() || "Thanks for stopping by!";
-}
+async function generateReply(session: any, viewerMessage: string, viewerId: string) {
+    const settings = await getSystemSettings();
+    const provider = settings.ai_provider;
+    
+    const recentChats = session.chat_logs
+        .reverse()
+        .map((c: any) => `${c.viewer_id}: ${c.message}`)
+        .join("\n");
 
-async function generateWithSumoPod(systemPrompt: string, userMessage: string): Promise<string> {
-    const response = await axios.post(`${SUMOPOD_API_URL}/v1/chat/completions`, {
-        model: AI_MODEL,
-        messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage }
-        ],
-        max_tokens: 150,
-        temperature: 0.7
-    }, {
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${SUMOPOD_API_KEY}`
-        }
-    });
-    return response.data.choices[0]?.message?.content || "Thanks for stopping by!";
+    const systemPrompt = `
+${settings.ai_persona || "You are an AI Livestreamer."}
+Your tone for this session is: ${session.ai_tone}.
+AI Name: ${settings.ai_name}.
+Context for this stream: ${session.context_text || "General entertainment stream"}.
+
+Guidelines:
+- Keep responses concise and engaging for a live audience (max 2 sentences).
+- Respond to the latest message while being aware of the last few chats.
+- Never mention you are an AI unless asked directly.
+- Use the AI name "${settings.ai_name}" if you need to refer to yourself.
+
+Recent Chat History:
+${recentChats}
+    `.trim();
+
+    const userInput = `${viewerId}: ${viewerMessage}`;
+    const maxTokens = settings.max_response_length || 150;
+
+    if (provider === "gemini") {
+        console.log("[AI-Worker] Calling Google Gemini...");
+        const apiKey = settings.gemini_api_key || process.env.GEMINI_API_KEY || "";
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+            systemInstruction: systemPrompt,
+        });
+        const result = await model.generateContent(userInput);
+        return result.response.text();
+    } else {
+        console.log("[AI-Worker] Calling OpenAI...");
+        const apiKey = settings.openai_api_key || process.env.OPENAI_API_KEY || "";
+        const openai = new OpenAI({ apiKey });
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userInput }
+            ],
+            max_tokens: maxTokens,
+        });
+        return completion.choices[0]?.message?.content || "Thanks for stopping by!";
+    }
 }
 
 // --- Main Message Handler ---
@@ -109,42 +128,9 @@ redisSub.on("message", async (channel, message) => {
             return;
         }
 
-        const recentChats = session.chat_logs
-            .reverse()
-            .map(c => `${c.viewer_id}: ${c.message}`)
-            .join("\n");
-
-        const systemPrompt = `
-You are an AI Livestreamer Assistant. 
-Your tone is: ${session.ai_tone}.
-Context for this stream: ${session.context_text || "General entertainment stream"}.
-
-Guidelines:
-- Keep responses concise and engaging for a live audience (max 2 sentences).
-- Respond to the latest message while being aware of the last few chats.
-- Never mention you are an AI unless asked directly.
-- Be friendly and interact with the viewer.
-
-Recent Chat History:
-${recentChats}
-        `.trim();
-
-        const userInput = `${viewerId}: ${viewerMessage}`;
-
-        // 2. Generate Reply using selected provider
-        let replyText: string;
-        if (AI_PROVIDER === "gemini") {
-            console.log("[AI-Worker] Calling Google Gemini...");
-            replyText = await generateWithGemini(systemPrompt, userInput);
-        } else if (AI_PROVIDER === "sumopod") {
-            console.log("[AI-Worker] Calling SumoPod...");
-            replyText = await generateWithSumoPod(systemPrompt, userInput);
-        } else {
-            console.log("[AI-Worker] Calling OpenAI...");
-            replyText = await generateWithOpenAI(systemPrompt, userInput);
-        }
-        
-        console.log(`[AI-Worker] AI Reply (${AI_PROVIDER}): ${replyText}`);
+        // 2. Generate Reply
+        const replyText = await generateReply(session, viewerMessage, viewerId);
+        console.log(`[AI-Worker] AI Reply: ${replyText}`);
 
         // 3. Save to Database
         const aiReply = await prisma.ai_reply_logs.create({
@@ -165,7 +151,7 @@ ${recentChats}
             createdAt: aiReply.created_at
         }));
 
-        // Channel: ai_voice_play -> TTS Worker
+        // Trigger TTS
         await redisPub.publish("ai_voice_play", JSON.stringify({
             liveId,
             text: replyText,

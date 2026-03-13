@@ -207,7 +207,7 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
                 className="w-full bg-slate-950/50 border border-slate-800/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500/30 transition-all font-mono text-xs placeholder:text-slate-600"
               />
               <p className="text-[9px] text-slate-500 leading-relaxed">
-                Kosongkan jika ingin sistem auto-detect Live ID dari channel Anda (membutuhkan <code className="text-slate-400">YT_CHANNEL_HANDLE</code> di .env).
+                Kosongkan jika ingin sistem auto-detect Live ID dari channel Anda (membutuhkan konfigurasi di menu Settings).
               </p>
             </div>
           </div>

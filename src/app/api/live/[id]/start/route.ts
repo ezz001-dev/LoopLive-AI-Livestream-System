@@ -58,20 +58,25 @@ export async function POST(
         }
 
         // Start YouTube Chat Poller
-        // Priority: 1) session.youtube_video_id (manual), 2) Auto-detect from YT_CHANNEL_HANDLE env
+        // Priority: 1) session.youtube_video_id (manual), 2) Auto-detect from settings in DB
         let youtubeVideoId = session.youtube_video_id || null;
 
-        if (!youtubeVideoId && process.env.YT_CHANNEL_HANDLE) {
-            console.log(`[Start API] No Video ID on session — auto-detecting from channel: ${process.env.YT_CHANNEL_HANDLE}`);
-            youtubeVideoId = await getYouTubeLiveVideoId(process.env.YT_CHANNEL_HANDLE);
+        if (!youtubeVideoId) {
+            const settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+            const ytHandle = settings?.yt_channel_handle;
 
-            // Save the detected video ID to session so stop/other features can use it
-            if (youtubeVideoId) {
-                await prisma.live_sessions.update({
-                    where: { id },
-                    data: { youtube_video_id: youtubeVideoId }
-                });
-                console.log(`[Start API] Auto-detected and saved Video ID: ${youtubeVideoId}`);
+            if (ytHandle) {
+                console.log(`[Start API] No Video ID on session — auto-detecting from channel: ${ytHandle}`);
+                youtubeVideoId = await getYouTubeLiveVideoId(ytHandle);
+
+                // Save the detected video ID to session so stop/other features can use it
+                if (youtubeVideoId) {
+                    await prisma.live_sessions.update({
+                        where: { id },
+                        data: { youtube_video_id: youtubeVideoId }
+                    });
+                    console.log(`[Start API] Auto-detected and saved Video ID: ${youtubeVideoId}`);
+                }
             }
         }
 
