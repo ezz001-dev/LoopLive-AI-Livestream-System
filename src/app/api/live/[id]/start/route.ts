@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
 import { getYouTubeLiveVideoId } from "@/lib/youtube-detect";
+import { resolveVideoInputSource } from "@/lib/storage";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,10 @@ export async function POST(
         const redisUrl = settings?.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
         const redisPub = new Redis(redisUrl);
 
-        const session: any = await prisma.live_sessions.findUnique({ where: { id } });
+        const session = await prisma.live_sessions.findUnique({
+            where: { id },
+            include: { video: true }
+        });
 
         if (!session) {
             return NextResponse.json({ error: "Live session not found" }, { status: 404 });
@@ -36,8 +40,12 @@ export async function POST(
             data: { status: "LIVE" }
         });
 
-        // Start FFmpeg Loop Worker
-        const videoFilename = session.video_id.includes(".") ? session.video_id : `${session.video_id}.mp4`;
+        if (!session.video) {
+            await prisma.live_sessions.update({ where: { id }, data: { status: "IDLE" } });
+            return NextResponse.json({ error: "Video asset not found for this session" }, { status: 404 });
+        }
+
+        const videoInput = resolveVideoInputSource(session.video);
 
         // Construct RTMP Destination
         const systemSettings = await prisma.system_settings.findUnique({ where: { id: "1" } });
@@ -57,7 +65,7 @@ export async function POST(
         }
 
         try {
-            workerManager.start(id, videoFilename, rtmpUrl);
+            workerManager.start(id, videoInput, rtmpUrl);
         } catch (err: any) {
             console.error("[WorkerManager] Failed to start:", err);
 

@@ -8,6 +8,7 @@ interface Video {
   id: string;
   filename: string;
   file_type: string;
+  storage_provider?: string;
 }
 
 interface CreateSessionModalProps {
@@ -42,7 +43,8 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
     fetch("/api/videos")
       .then(res => res.json())
       .then(data => {
-        setVideos(Array.isArray(data) ? data : []);
+        const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+        setVideos(items);
         setFetchingVideos(false);
       })
       .catch(() => setFetchingVideos(false));

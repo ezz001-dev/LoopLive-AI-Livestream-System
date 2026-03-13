@@ -66,13 +66,17 @@ model live_sessions {
 
 
 model videos {
-  id         String          @id @default(uuid())
-  filename   String
-  file_path  String
-  file_type  String
-  created_at DateTime        @default(now())
-  updated_at DateTime        @updatedAt
-  sessions   live_sessions[]
+  id               String          @id @default(uuid())
+  filename         String
+  file_path        String
+  file_type        String
+  file_size        BigInt?
+  storage_provider String          @default("local")
+  storage_key      String?
+  public_url       String?
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  sessions         live_sessions[]
 }
 
 

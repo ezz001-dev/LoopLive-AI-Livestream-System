@@ -32,6 +32,9 @@ export default async function VideosPage() {
             <div className="p-5">
               <h3 className="font-bold text-white truncate text-lg">{video.filename}</h3>
               <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider">{video.file_type}</p>
+              <p className="text-[10px] text-slate-600 mt-2 uppercase tracking-wider">
+                {(video as any).storage_provider || "local"}
+              </p>
               
               <div className="flex items-center justify-between mt-6">
                 <div className="flex gap-2">

@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
-import { mkdir } from "fs/promises";
-import fs from "fs";
-import path from "path";
-import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { Readable } from "stream";
+import { getStorageProvider, isR2StorageEnabled } from "@/lib/storage-config";
+import { uploadVideoAsset } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const maxDuration = 300; // Increase to 5 minutes for large uploads
+
+function serializeVideo(video: {
+  id: string;
+  filename: string;
+  file_path: string;
+  file_type: string;
+  file_size: bigint | null;
+  storage_provider: string;
+  storage_key?: string | null;
+  public_url: string | null;
+  created_at: Date;
+  updated_at?: Date;
+}) {
+  return {
+    ...video,
+    file_size: video.file_size?.toString() ?? null,
+  };
+}
 
 export async function POST(req: Request) {
   try {
@@ -31,44 +46,23 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Uploaded file is not a valid video" }, { status: 400 });
     }
 
-    // Generate a unique identifier
-    const video_id = crypto.randomUUID();
-    const extension = path.extname(file.name) || ".mp4";
-    const filename = `${video_id}${extension}`;
-
-    // Define public path
-    const uploadDir = path.join(process.cwd(), "public", "videos");
-    const filepath = path.join(uploadDir, filename);
-
-    // Create directory if it doesn't exist
-    await mkdir(uploadDir, { recursive: true });
-
-    // Use streaming write to disk to avoid buffering in RAM
-    const writeStream = fs.createWriteStream(filepath);
-    
-    // file.stream() returns a ReadableStream (Web Stream)
-    // We convert it to a Node.js Readable stream
-    const webStream = file.stream();
-    const nodeStream = Readable.fromWeb(webStream as any);
-
-    await new Promise((resolve, reject) => {
-      nodeStream.pipe(writeStream);
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
-      nodeStream.on("error", reject);
-    });
+    const uploadedAsset = await uploadVideoAsset(file);
 
     // Save to Database
     const savedVideo = await prisma.videos.create({
       data: {
-        id: video_id,
-        filename: file.name,
-        file_path: `/videos/${filename}`,
+        id: uploadedAsset.id,
+        filename: uploadedAsset.originalFilename,
+        file_path: uploadedAsset.filePath,
         file_type: file.type,
+        file_size: uploadedAsset.fileSize,
+        storage_provider: uploadedAsset.storageProvider,
+        storage_key: uploadedAsset.storageKey,
+        public_url: uploadedAsset.publicUrl,
       }
     });
 
-    return NextResponse.json(savedVideo);
+    return NextResponse.json(serializeVideo(savedVideo));
     
   } catch (error: any) {
     console.error("Video Upload Error:", error);
@@ -80,9 +74,22 @@ export async function GET() {
   try {
     const videos = await prisma.videos.findMany({
       orderBy: { created_at: "desc" },
-      select: { id: true, filename: true, file_type: true, created_at: true }
+      select: {
+        id: true,
+        filename: true,
+        file_type: true,
+        file_size: true,
+        storage_provider: true,
+        file_path: true,
+        public_url: true,
+        created_at: true,
+      }
     });
-    return NextResponse.json(videos);
+    return NextResponse.json({
+      items: videos.map(serializeVideo),
+      storageProvider: getStorageProvider(),
+      r2Enabled: isR2StorageEnabled(),
+    });
   } catch (error) {
     console.error("Get Videos Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

@@ -1,5 +1,4 @@
 import { ChildProcess, spawn } from "child_process";
-import path from "path";
 import fs from "fs";
 
 /**
@@ -16,22 +15,21 @@ class WorkerManager {
   /**
    * Starts a livestream loop for a specific session.
    * @param liveId The unique ID of the live session.
-   * @param videoFilename The filename of the video in public/videos/.
+   * @param videoInput The local file path or remote URL for FFmpeg input.
    * @param streamUrl The RTMP ingestion URL (MediaMTX).
    */
-  public start(liveId: string, videoFilename: string, streamUrl: string) {
+  public start(liveId: string, videoInput: string, streamUrl: string) {
     if (this.processes.has(liveId)) {
       console.warn(`[WorkerManager] Session ${liveId} is already running.`);
       return;
     }
 
-    const videoPath = path.join(process.cwd(), "public", "videos", videoFilename);
-
-    if (!fs.existsSync(videoPath)) {
-      throw new Error(`Video file not found: ${videoPath}`);
+    const isRemoteInput = /^https?:\/\//i.test(videoInput);
+    if (!isRemoteInput && !fs.existsSync(videoInput)) {
+      throw new Error(`Video file not found: ${videoInput}`);
     }
 
-    console.log(`[WorkerManager] Starting stream for ${liveId} using ${videoFilename}`);
+    console.log(`[WorkerManager] Starting stream for ${liveId} using ${videoInput}`);
 
     /**
      * FFmpeg Command Flags:
@@ -46,7 +44,7 @@ class WorkerManager {
     const ffmpeg = spawn("ffmpeg", [
       "-re",
       "-stream_loop", "-1",
-      "-i", videoPath,
+      "-i", videoInput,
       "-c:v", "libx264",
       "-preset", "veryfast",
       "-tune", "zerolatency",
