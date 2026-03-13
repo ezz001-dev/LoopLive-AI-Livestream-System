@@ -40,8 +40,12 @@ export async function POST(
         const videoFilename = session.video_id.includes(".") ? session.video_id : `${session.video_id}.mp4`;
 
         // Construct RTMP Destination
+        const systemSettings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+        const mediamtxHost = systemSettings?.mediamtx_host || "localhost";
+        const rtmpPort = systemSettings?.rtmp_port || 1935;
+
         // If target_rtmp_url is provided (e.g. YouTube), use it. Otherwise use internal MediaMTX.
-        let rtmpUrl = `rtmp://localhost:1935/live/${id}`;
+        let rtmpUrl = `rtmp://${mediamtxHost}:${rtmpPort}/live/${id}`;
         if (session.target_rtmp_url) {
             let baseUrl = session.target_rtmp_url;
             // Ensure trailing slash if not present
