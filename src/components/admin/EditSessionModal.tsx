@@ -269,10 +269,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
           )}
 
           <div>
-            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+            <label htmlFor="session-title" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
               Session Title
             </label>
             <input
+              id="session-title"
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
@@ -281,11 +282,12 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
           </div>
 
           <div>
-            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+            <label htmlFor="youtube-video-id" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
               <Youtube size={14} />
               YouTube Video ID
             </label>
             <input
+              id="youtube-video-id"
               type="text"
               value={formData.youtube_video_id || ""}
               onChange={(e) => setFormData({ ...formData, youtube_video_id: e.target.value || null })}
@@ -299,10 +301,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <label htmlFor="rtmp-url" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                 RTMP URL
               </label>
               <input
+                id="rtmp-url"
                 type="text"
                 value={formData.target_rtmp_url || ""}
                 onChange={(e) => setFormData({ ...formData, target_rtmp_url: e.target.value || null })}
@@ -311,10 +314,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
               />
             </div>
             <div>
-              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <label htmlFor="stream-key" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                 Stream Key
               </label>
               <input
+                id="stream-key"
                 type="text"
                 value={formData.stream_key || ""}
                 onChange={(e) => setFormData({ ...formData, stream_key: e.target.value || null })}
@@ -325,10 +329,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
           </div>
 
           <div>
-            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+            <label htmlFor="ai-context" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
               AI Context
             </label>
             <textarea
+              id="ai-context"
               value={formData.context_text || ""}
               onChange={(e) => setFormData({ ...formData, context_text: e.target.value || null })}
               rows={3}
@@ -338,10 +343,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
           </div>
 
           <div>
-            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+            <label htmlFor="ai-tone" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
               AI Tone
             </label>
             <select
+              id="ai-tone"
               value={formData.ai_tone}
               onChange={(e) => setFormData({ ...formData, ai_tone: e.target.value })}
               className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:outline-none transition-colors"
@@ -386,9 +392,9 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                 {/* Multi-Schedule Display */}
                 {schedules.length > 0 && (
                   <div className="mb-4">
-                    <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <span className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                       Active Schedules ({schedules.length})
-                    </label>
+                    </span>
                     <div className="space-y-2">
                       {schedules.map((schedule: any) => (
                         <div key={schedule.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
@@ -466,9 +472,9 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
 
                     {/* Schedule Type */}
                     <div>
-                      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                      <span className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                         Schedule Type
-                      </label>
+                      </span>
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
@@ -499,10 +505,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                       /* One-time Schedule */
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                            <label htmlFor="scheduled-at" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                               Start Date & Time
                             </label>
                             <input
+                              id="scheduled-at"
                               type="datetime-local"
                               value={newSchedule.scheduled_at}
                               onChange={(e) => setNewSchedule({ ...newSchedule, scheduled_at: e.target.value })}
@@ -510,10 +517,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                             />
                           </div>
                           <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                            <label htmlFor="scheduled-end-at" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                               End Date & Time
                             </label>
                             <input
+                              id="scheduled-end-at"
                               type="datetime-local"
                               value={newSchedule.scheduled_end_at}
                               onChange={(e) => setNewSchedule({ ...newSchedule, scheduled_end_at: e.target.value })}
@@ -526,9 +534,9 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                       <div className="space-y-4">
                         {/* Days of Week */}
                         <div>
-                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                          <span className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                             Days of Week
-                          </label>
+                          </span>
                           <div className="flex flex-wrap gap-2">
                             {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
                               const isSelected = newSchedule.days_of_week.includes(day);
@@ -557,10 +565,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                         {/* Time Range */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                            <label htmlFor="start-time" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                               Start Time
                             </label>
                             <input
+                              id="start-time"
                               type="time"
                               value={newSchedule.start_time}
                               onChange={(e) => setNewSchedule({ ...newSchedule, start_time: e.target.value })}
@@ -568,10 +577,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                             />
                           </div>
                           <div>
-                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                            <label htmlFor="end-time" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                               End Time
                             </label>
                             <input
+                              id="end-time"
                               type="time"
                               value={newSchedule.end_time}
                               onChange={(e) => setNewSchedule({ ...newSchedule, end_time: e.target.value })}
@@ -582,10 +592,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
 
                         {/* Timezone */}
                         <div>
-                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                          <label htmlFor="timezone" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                             Timezone
                           </label>
                           <select
+                            id="timezone"
                             value={newSchedule.timezone}
                             onChange={(e) => setNewSchedule({ ...newSchedule, timezone: e.target.value })}
                             className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm"
@@ -599,10 +610,11 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
 
                         {/* Repeat End Date */}
                         <div>
-                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                          <label htmlFor="repeat-end-date" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
                             Repeat Until (Optional)
                           </label>
                           <input
+                            id="repeat-end-date"
                             type="date"
                             value={newSchedule.repeat_end_date}
                             onChange={(e) => setNewSchedule({ ...newSchedule, repeat_end_date: e.target.value })}
