@@ -1,16 +1,25 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Save, Key, Globe, Cpu, BrainCircuit, ShieldCheck, Check, Loader2, AlertCircle } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Save, Key, Globe, Cpu, BrainCircuit, ShieldCheck, Check, Loader2, AlertCircle, Volume2, Plus, Trash2, Music, ToggleLeft, ToggleRight, Upload } from "lucide-react";
 
-type Tab = "api_keys" | "ai_providers" | "stream" | "ai_defaults";
+type Tab = "api_keys" | "ai_providers" | "stream" | "ai_defaults" | "sound_events";
 
 const tabs = [
   { id: "api_keys" as Tab, label: "API Keys", icon: Key, color: "blue" },
   { id: "ai_providers" as Tab, label: "AI Providers", icon: BrainCircuit, color: "purple" },
   { id: "stream" as Tab, label: "Stream Settings", icon: Globe, color: "green" },
   { id: "ai_defaults" as Tab, label: "AI Defaults", icon: Cpu, color: "orange" },
+  { id: "sound_events" as Tab, label: "Sound Events", icon: Volume2, color: "pink" },
 ];
+
+interface SoundEvent {
+  id: string;
+  event_type: string;
+  keyword: string | null;
+  audio_url: string;
+  active: boolean;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("api_keys");
@@ -36,8 +45,18 @@ export default function SettingsPage() {
     max_response_length: 150
   });
 
+  const [soundEvents, setSoundEvents] = useState<SoundEvent[]>([]);
+  const [newSound, setNewSound] = useState({
+    event_type: "keyword",
+    keyword: "",
+    file: null as File | null,
+  });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchSettings();
+    fetchSoundEvents();
   }, []);
 
   const fetchSettings = async () => {
@@ -46,14 +65,23 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings");
       if (!res.ok) throw new Error("Failed to fetch settings");
       const data = await res.json();
-      setSettings(prev => ({
-        ...prev,
-        ...data
-      }));
+      setSettings(prev => ({ ...prev, ...data }));
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSoundEvents = async () => {
+    try {
+      const res = await fetch("/api/sounds");
+      if (res.ok) {
+        const data = await res.json();
+        setSoundEvents(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch sound events");
     }
   };
 
@@ -76,6 +104,74 @@ export default function SettingsPage() {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddSound = async () => {
+    if (!newSound.file || (newSound.event_type === "keyword" && !newSound.keyword)) {
+      alert("Please provide a file and a keyword (if applicable)");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      // 1. Upload file
+      const formData = new FormData();
+      formData.append("file", newSound.file);
+      
+      const uploadRes = await fetch("/api/sounds/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!uploadRes.ok) throw new Error("File upload failed");
+      const { url } = await uploadRes.json();
+
+      // 2. Create entry in DB
+      const createRes = await fetch("/api/sounds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_type: newSound.event_type,
+          keyword: newSound.keyword,
+          audio_url: url,
+        }),
+      });
+
+      if (!createRes.ok) throw new Error("Failed to create sound event");
+
+      // Reset form and refresh
+      setNewSound({ event_type: "keyword", keyword: "", file: null });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      fetchSoundEvents();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteSound = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this sound?")) return;
+    try {
+      const res = await fetch(`/api/sounds/${id}`, { method: "DELETE" });
+      if (res.ok) fetchSoundEvents();
+    } catch (err) {
+      alert("Delete failed");
+    }
+  };
+
+  const handleToggleSound = async (id: string, active: boolean, keyword: string | null) => {
+    try {
+      const res = await fetch(`/api/sounds/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active, keyword }),
+      });
+      if (res.ok) fetchSoundEvents();
+    } catch (err) {
+      alert("Update failed");
     }
   };
 
@@ -111,7 +207,7 @@ export default function SettingsPage() {
             </div>
           )}
           <button
-            onClick={handleSave}
+            onClick={activeTab === "sound_events" ? fetchSoundEvents : handleSave}
             disabled={saving}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-semibold transition-all shadow-lg active:scale-95 disabled:opacity-50 ${
               saved
@@ -124,9 +220,9 @@ export default function SettingsPage() {
             ) : saved ? (
               <Check size={18} />
             ) : (
-              <Save size={18} />
+              activeTab === "sound_events" ? <Loader2 size={18} /> : <Save size={18} />
             )}
-            <span>{saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}</span>
+            <span>{saving ? "Saving..." : saved ? "Saved!" : activeTab === "sound_events" ? "Refresh" : "Save Changes"}</span>
           </button>
         </div>
       </div>
@@ -390,6 +486,127 @@ export default function SettingsPage() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-orange-500/50 transition-all" 
                 />
                 <p className="text-[10px] text-slate-500 px-1">Lower = faster responses. Recommended: 80-200.</p>
+              </div>
+            </div>
+          )}
+
+          {/* --- SOUND EVENTS TAB --- */}
+          {activeTab === "sound_events" && (
+            <div className="space-y-6">
+              <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 space-y-6 backdrop-blur-xl">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 border border-pink-500/20">
+                    <Volume2 size={20} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Add New Sound Event</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Event Type</label>
+                    <select 
+                      value={newSound.event_type}
+                      onChange={e => setNewSound(prev => ({ ...prev, event_type: e.target.value }))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="keyword">Chat Keyword (e.g. "hai")</option>
+                      <option value="join">Viewer Join Stream</option>
+                    </select>
+                  </div>
+                  {newSound.event_type === "keyword" && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-400">Keyword</label>
+                      <input 
+                        type="text" 
+                        value={newSound.keyword}
+                        onChange={e => setNewSound(prev => ({ ...prev, keyword: e.target.value }))}
+                        placeholder="hai" 
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all font-mono text-sm" 
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-400">Audio File (MP3/WAV)</label>
+                  <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={e => setNewSound(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
+                      className="hidden" 
+                      accept="audio/*"
+                    />
+                    <div className="w-full bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 group-hover:border-pink-500/50 transition-all">
+                      <div className="h-12 w-12 rounded-full bg-slate-900 flex items-center justify-center text-slate-500 group-hover:text-pink-400">
+                        {uploading ? <Loader2 size={24} className="animate-spin" /> : <Upload size={24} />}
+                      </div>
+                      <p className="text-sm text-slate-500 font-medium tracking-tight">
+                        {newSound.file ? newSound.file.name : "Click to upload audio file"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleAddSound}
+                  disabled={uploading || (!newSound.file)}
+                  className="w-full flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all active:scale-95 shadow-lg shadow-pink-600/20"
+                >
+                  {uploading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                  <span>{uploading ? "Uploading..." : "Add Sound Trigger"}</span>
+                </button>
+              </div>
+
+              {/* Sound List */}
+              <div className="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-xl">
+                 <div className="px-8 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
+                    <h4 className="text-sm font-bold text-white uppercase tracking-widest">Configured Sounds</h4>
+                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-lg font-bold">{soundEvents.length} Events</span>
+                 </div>
+                 <div className="divide-y divide-slate-800">
+                    {soundEvents.length === 0 ? (
+                      <div className="p-12 text-center">
+                        <Music className="mx-auto text-slate-700 mb-3" size={32} />
+                        <p className="text-slate-500 text-sm">No custom sounds configured yet.</p>
+                      </div>
+                    ) : (
+                      soundEvents.map(sound => (
+                        <div key={sound.id} className="p-6 flex items-center justify-between hover:bg-slate-800/10 transition-colors">
+                           <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-xl bg-slate-900 flex items-center justify-center text-slate-500">
+                                 <Volume2 size={20} />
+                              </div>
+                              <div>
+                                 <div className="flex items-center gap-2">
+                                    <span className="text-white font-medium text-sm">
+                                       {sound.event_type === "keyword" ? `Keyword: "${sound.keyword}"` : "Event: Viewer Join"}
+                                    </span>
+                                    {!sound.active && (
+                                       <span className="text-[9px] bg-slate-950 text-slate-500 px-1.5 py-0.5 rounded border border-slate-800 font-bold uppercase tracking-widest">Disabled</span>
+                                    )}
+                                 </div>
+                                 <p className="text-[10px] text-slate-500 font-mono mt-0.5">{sound.audio_url}</p>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              <button 
+                                onClick={() => handleToggleSound(sound.id, !sound.active, sound.keyword)}
+                                className={`h-8 w-8 rounded-lg flex items-center justify-center transition-all ${sound.active ? 'text-green-400 hover:bg-green-500/10' : 'text-slate-600 hover:bg-slate-700'}`}
+                              >
+                                 {sound.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteSound(sound.id)}
+                                className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                              >
+                                 <Trash2 size={16} />
+                              </button>
+                           </div>
+                        </div>
+                      ))
+                    )}
+                 </div>
               </div>
             </div>
           )}

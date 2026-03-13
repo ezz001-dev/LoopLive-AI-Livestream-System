@@ -128,6 +128,14 @@ Details: ${e.message}`);
       }
     });
 
+    s.on("play_sound", async (data: { audioUrl: string }) => {
+      console.log("[PublicLivePage] 🔊 play_sound event received:", data.audioUrl);
+      if (audioRef.current && audioEnabledRef.current) {
+        const sound = new Audio(`${data.audioUrl}?t=${Date.now()}`);
+        sound.play().catch(e => console.error("[PublicLivePage] Failed to play sound:", e));
+      }
+    });
+
     s.on("disconnect", () => {
       console.warn("[PublicLivePage] ❌ Socket disconnected");
     });

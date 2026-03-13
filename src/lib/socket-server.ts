@@ -18,13 +18,39 @@ const PORT = process.env.SOCKET_PORT || 3001;
 
 console.log("[SocketServer] Initializing...");
 
+// Sound Trigger Helper
+async function checkAndTriggerSound(liveId: string, type: "keyword" | "join", text?: string) {
+  try {
+    const soundEvents = await prisma.sound_events.findMany({
+      where: { event_type: type, active: true }
+    });
+
+    for (const event of soundEvents) {
+      if (type === "join") {
+        // Play automatically on join
+        io.to(liveId).emit("play_sound", { audioUrl: event.audio_url });
+      } else if (type === "keyword" && event.keyword && text?.toLowerCase().includes(event.keyword.toLowerCase())) {
+        // Play if keyword matches
+        console.log(`[SocketServer] Keyword match: "${event.keyword}" -> Playing ${event.audio_url}`);
+        io.to(liveId).emit("play_sound", { audioUrl: event.audio_url });
+        break; // Only play one sound per message to avoid spam
+      }
+    }
+  } catch (err) {
+    console.error("[SocketServer] Error triggering sound:", err);
+  }
+}
+
 io.on("connection", (socket) => {
   console.log(`[SocketServer] User connected: ${socket.id}`);
 
   // Join Room based on Live Session ID
-  socket.on("join_room", (liveId: string) => {
+  socket.on("join_room", async (liveId: string) => {
     socket.join(liveId);
     console.log(`[SocketServer] Socket ${socket.id} joined room: ${liveId}`);
+    
+    // Trigger "join" sound
+    await checkAndTriggerSound(liveId, "join");
   });
 
   // Handle Chat Message from Viewer
@@ -50,7 +76,10 @@ io.on("connection", (socket) => {
         createdAt: chatLog.created_at
       });
 
-      // 3. Publish to Redis for AI Worker
+      // 3. Trigger Sound Keyword check
+      await checkAndTriggerSound(liveId, "keyword", message);
+
+      // 4. Publish to Redis for AI Worker
       await redisPub.publish("chat_event_queue", JSON.stringify({
         type: "NEW_CHAT",
         liveId,
