@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Edit2, Save, X, Youtube, Clock, Calendar, Repeat } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Edit2, Save, X, Youtube, Clock, Calendar, Repeat, Plus, Trash2, Pencil } from "lucide-react";
 
 interface EditSessionModalProps {
   sessionId: string;
@@ -33,6 +33,125 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSchedule, setShowSchedule] = useState(initialData.schedule_enabled);
+
+  // Multi-schedule state
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [showAddSchedule, setShowAddSchedule] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<any | null>(null);
+  const [newSchedule, setNewSchedule] = useState({
+    schedule_type: 'one-time',
+    scheduled_at: '',
+    scheduled_end_at: '',
+    days_of_week: [] as string[],
+    start_time: '',
+    end_time: '',
+    timezone: 'Asia/Jakarta',
+    active: true,
+    repeat_end_date: '',
+  });
+
+  // Load schedules on mount
+  useEffect(() => {
+    loadSchedules();
+  }, [sessionId]);
+
+  async function loadSchedules() {
+    setLoadingSchedules(true);
+    try {
+      const res = await fetch(`/api/live/${sessionId}/schedule`);
+      const data = await res.json();
+      if (data.schedules) {
+        setSchedules(data.schedules);
+      }
+    } catch (err) {
+      console.error('Failed to load schedules:', err);
+    } finally {
+      setLoadingSchedules(false);
+    }
+  }
+
+  async function handleAddSchedule() {
+    try {
+      // Validation: Start time cannot be in the past for one-time schedules
+      if (newSchedule.schedule_type === 'one-time' && newSchedule.scheduled_at) {
+        if (new Date(newSchedule.scheduled_at) < new Date()) {
+          throw new Error('Start time cannot be in the past');
+        }
+      }
+
+      const submitData: any = {
+        schedule_type: newSchedule.schedule_type,
+        timezone: newSchedule.timezone,
+        active: newSchedule.active,
+      };
+
+      if (newSchedule.schedule_type === 'one-time') {
+        submitData.scheduled_at = newSchedule.scheduled_at;
+        if (newSchedule.scheduled_end_at) {
+          submitData.scheduled_end_at = newSchedule.scheduled_end_at;
+        }
+      } else {
+        submitData.days_of_week = newSchedule.days_of_week;
+        submitData.start_time = newSchedule.start_time;
+        submitData.end_time = newSchedule.end_time;
+        if (newSchedule.repeat_end_date) {
+          submitData.repeat_end_date = newSchedule.repeat_end_date;
+        }
+      }
+
+      const res = await fetch(`/api/live/${sessionId}/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submitData),
+      });
+
+      if (!res.ok) throw new Error('Failed to add schedule');
+
+      await loadSchedules();
+      setShowAddSchedule(false);
+      setNewSchedule({
+        schedule_type: 'one-time',
+        scheduled_at: '',
+        scheduled_end_at: '',
+        days_of_week: [],
+        start_time: '',
+        end_time: '',
+        timezone: 'Asia/Jakarta',
+        active: true,
+        repeat_end_date: '',
+      });
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDeleteSchedule(scheduleId: string) {
+    if (!confirm('Delete this schedule?')) return;
+    try {
+      const res = await fetch(`/api/live/${sessionId}/schedule/${scheduleId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete schedule');
+      await loadSchedules();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function handleUpdateScheduleActive(scheduleId: string, active: boolean) {
+    try {
+      const res = await fetch(`/api/live/${sessionId}/schedule/${scheduleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active }),
+      });
+      if (!res.ok) throw new Error('Failed to update schedule');
+      await loadSchedules();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,7 +358,7 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
               <div className="flex items-center gap-3">
                 {formData.schedule_enabled && (
                   <span className="text-xs text-purple-400 bg-purple-400/10 px-2 py-1 rounded">
-                    {formData.schedule_type === 'one-time' ? 'One-time' : 'Repeat'}
+                    {schedules.length > 0 ? `${schedules.length} Active` : 'Enabled'}
                   </span>
                 )}
                 <div className={`w-11 h-6 rounded-full relative transition-colors ${formData.schedule_enabled ? 'bg-purple-600' : 'bg-slate-700'}`}>
@@ -250,159 +369,244 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
 
             {showSchedule && formData.schedule_enabled && (
               <div className="mt-4 space-y-4 p-4 bg-slate-800/30 rounded-xl">
-                {/* Schedule Type */}
-                <div>
-                  <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                    Schedule Type
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, schedule_type: 'one-time' })}
-                      className={`p-3 rounded-xl border transition-all flex items-center justify-center gap-2 ${
-                        formData.schedule_type === 'one-time'
-                          ? 'border-purple-500 bg-purple-500/20 text-white'
-                          : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
-                      }`}
-                    >
-                      <Calendar size={16} />
-                      One-time
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, schedule_type: 'repeat' })}
-                      className={`p-3 rounded-xl border transition-all flex items-center justify-center gap-2 ${
-                        formData.schedule_type === 'repeat'
-                          ? 'border-purple-500 bg-purple-500/20 text-white'
-                          : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
-                      }`}
-                    >
-                      <Repeat size={16} />
-                      Repeat
-                    </button>
-                  </div>
-                </div>
-
-                {formData.schedule_type === 'one-time' ? (
-                  /* One-time Schedule */
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        Start Date & Time
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={formatDateTimeLocal(formData.schedule_start_at)}
-                        onChange={(e) => setFormData({ ...formData, schedule_start_at: e.target.value ? new Date(e.target.value) : null })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        End Date & Time
-                      </label>
-                      <input
-                        type="datetime-local"
-                        value={formatDateTimeLocal(formData.schedule_end_at)}
-                        onChange={(e) => setFormData({ ...formData, schedule_end_at: e.target.value ? new Date(e.target.value) : null })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  /* Repeat Schedule */
-                  <div className="space-y-4">
-                    {/* Days of Week */}
-                    <div>
-                      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        Days of Week
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
-                          const days = getParsedDays();
-                          const isSelected = days.includes(day);
-                          return (
+                {/* Multi-Schedule Display */}
+                {schedules.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                      Active Schedules ({schedules.length})
+                    </label>
+                    <div className="space-y-2">
+                      {schedules.map((schedule: any) => (
+                        <div key={schedule.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded ${schedule.schedule_type === 'one-time' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
+                                {schedule.schedule_type === 'one-time' ? 'One-time' : 'Repeat'}
+                              </span>
+                              <span className={`text-xs px-2 py-0.5 rounded ${schedule.active ? 'bg-green-500/20 text-green-400' : 'bg-slate-600 text-slate-400'}`}>
+                                {schedule.active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
+                            <p className="text-white text-sm mt-1">
+                              {schedule.schedule_type === 'one-time'
+                                ? (
+                                  <>
+                                    {schedule.scheduled_at ? new Date(schedule.scheduled_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Not set'}
+                                    {schedule.scheduled_end_at && (
+                                      <span className="text-slate-500 mx-2">to</span>
+                                    )}
+                                    {schedule.scheduled_end_at && new Date(schedule.scheduled_end_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                                  </>
+                                )
+                                : `${schedule.start_time} - ${schedule.end_time}`
+                              }
+                            </p>
+                            {schedule.schedule_type === 'repeat' && schedule.days_of_week && (
+                              <p className="text-slate-400 text-xs mt-1">
+                                Days: {Array.isArray(schedule.days_of_week) ? schedule.days_of_week.join(', ') : JSON.parse(schedule.days_of_week).join(', ')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
                             <button
-                              key={day}
                               type="button"
-                              onClick={() => {
-                                const currentDays = getParsedDays();
-                                const newDays = isSelected
-                                  ? currentDays.filter((d: string) => d !== day)
-                                  : [...currentDays, day];
-                                setFormData({ ...formData, schedule_days: JSON.stringify(newDays) });
-                              }}
-                              className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                                isSelected
-                                  ? 'bg-purple-500 text-white'
-                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                              }`}
+                              onClick={() => handleUpdateScheduleActive(schedule.id, !schedule.active)}
+                              className={`p-2 rounded-lg transition-colors ${schedule.active ? 'text-green-400 hover:bg-green-500/20' : 'text-slate-400 hover:bg-slate-700'}`}
+                              title={schedule.active ? 'Disable' : 'Enable'}
                             >
-                              {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                              {schedule.active ? '⏸️' : '▶️'}
                             </button>
-                          );
-                        })}
-                      </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSchedule(schedule.id)}
+                              className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add New Schedule Button */}
+                {!showAddSchedule ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSchedule(true)}
+                    className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-slate-700 hover:border-purple-500 text-slate-400 hover:text-purple-400 rounded-xl transition-colors"
+                  >
+                    <Plus size={18} />
+                    Add New Schedule Entry
+                  </button>
+                ) : (
+                  <div className="space-y-4 p-4 bg-slate-900 rounded-xl border border-purple-500/30">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-white font-medium">New Schedule Entry</h4>
+                      <button type="button" onClick={() => setShowAddSchedule(false)} className="text-slate-400 hover:text-white">
+                        <X size={18} />
+                      </button>
                     </div>
 
-                    {/* Time Range */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                          Start Time
-                        </label>
-                        <input
-                          type="time"
-                          value={formData.schedule_start_time || ''}
-                          onChange={(e) => setFormData({ ...formData, schedule_start_time: e.target.value || null })}
-                          className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                          End Time
-                        </label>
-                        <input
-                          type="time"
-                          value={formData.schedule_end_time || ''}
-                          onChange={(e) => setFormData({ ...formData, schedule_end_time: e.target.value || null })}
-                          className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Timezone */}
+                    {/* Schedule Type */}
                     <div>
                       <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        Timezone
+                        Schedule Type
                       </label>
-                      <select
-                        value={formData.schedule_timezone}
-                        onChange={(e) => setFormData({ ...formData, schedule_timezone: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm"
-                      >
-                        <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
-                        <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
-                        <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
-                        <option value="UTC">UTC</option>
-                      </select>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNewSchedule({ ...newSchedule, schedule_type: 'one-time' })}
+                          className={`p-3 rounded-xl border transition-all flex items-center justify-center gap-2 ${newSchedule.schedule_type === 'one-time'
+                              ? 'border-purple-500 bg-purple-500/20 text-white'
+                              : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
+                            }`}
+                        >
+                          <Calendar size={16} />
+                          One-time
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewSchedule({ ...newSchedule, schedule_type: 'repeat' })}
+                          className={`p-3 rounded-xl border transition-all flex items-center justify-center gap-2 ${newSchedule.schedule_type === 'repeat'
+                              ? 'border-purple-500 bg-purple-500/20 text-white'
+                              : 'border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600'
+                            }`}
+                        >
+                          <Repeat size={16} />
+                          Repeat
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Repeat End Date (Optional) */}
-                    <div>
-                      <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                        Repeat Until (Optional)
-                      </label>
-                      <input
-                        type="date"
-                        value={formatDateInput(formData.schedule_repeat_end)}
-                        onChange={(e) => setFormData({ ...formData, schedule_repeat_end: e.target.value ? new Date(e.target.value) : null })}
-                        className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
-                      />
-                      <p className="text-slate-500 text-xs mt-1">
-                        Leave empty for indefinite repeat
-                      </p>
-                    </div>
+                    {newSchedule.schedule_type === 'one-time' ? (
+                      /* One-time Schedule */
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                              Start Date & Time
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={newSchedule.scheduled_at}
+                              onChange={(e) => setNewSchedule({ ...newSchedule, scheduled_at: e.target.value })}
+                              className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                              End Date & Time
+                            </label>
+                            <input
+                              type="datetime-local"
+                              value={newSchedule.scheduled_end_at}
+                              onChange={(e) => setNewSchedule({ ...newSchedule, scheduled_end_at: e.target.value })}
+                              className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
+                            />
+                          </div>
+                        </div>
+                    ) : (
+                      /* Repeat Schedule */
+                      <div className="space-y-4">
+                        {/* Days of Week */}
+                        <div>
+                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                            Days of Week
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
+                              const isSelected = newSchedule.days_of_week.includes(day);
+                              return (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => {
+                                    const newDays = isSelected
+                                      ? newSchedule.days_of_week.filter(d => d !== day)
+                                      : [...newSchedule.days_of_week, day];
+                                    setNewSchedule({ ...newSchedule, days_of_week: newDays });
+                                  }}
+                                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${isSelected
+                                      ? 'bg-purple-500 text-white'
+                                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                    }`}
+                                >
+                                  {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Time Range */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                              Start Time
+                            </label>
+                            <input
+                              type="time"
+                              value={newSchedule.start_time}
+                              onChange={(e) => setNewSchedule({ ...newSchedule, start_time: e.target.value })}
+                              className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                              End Time
+                            </label>
+                            <input
+                              type="time"
+                              value={newSchedule.end_time}
+                              onChange={(e) => setNewSchedule({ ...newSchedule, end_time: e.target.value })}
+                              className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Timezone */}
+                        <div>
+                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                            Timezone
+                          </label>
+                          <select
+                            value={newSchedule.timezone}
+                            onChange={(e) => setNewSchedule({ ...newSchedule, timezone: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm"
+                          >
+                            <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                            <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
+                            <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
+                            <option value="UTC">UTC</option>
+                          </select>
+                        </div>
+
+                        {/* Repeat End Date */}
+                        <div>
+                          <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                            Repeat Until (Optional)
+                          </label>
+                          <input
+                            type="date"
+                            value={newSchedule.repeat_end_date}
+                            onChange={(e) => setNewSchedule({ ...newSchedule, repeat_end_date: e.target.value })}
+                            className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-purple-500 focus:outline-none transition-colors text-sm [color-scheme:dark]"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleAddSchedule}
+                      disabled={newSchedule.schedule_type === 'one-time' && !newSchedule.scheduled_at}
+                      className="w-full flex items-center justify-center gap-2 p-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                    >
+                      <Plus size={18} />
+                      Add Schedule Entry
+                    </button>
                   </div>
                 )}
               </div>

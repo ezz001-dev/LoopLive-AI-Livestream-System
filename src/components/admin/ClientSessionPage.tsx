@@ -41,6 +41,17 @@ interface SessionData {
   schedule_end_time: string | null;
   schedule_timezone: string;
   schedule_repeat_end: Date | null;
+  schedules?: Array<{
+    id: string;
+    schedule_type: string;
+    scheduled_at: Date | null;
+    scheduled_end_at: Date | null;
+    days_of_week: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    timezone: string;
+    active: boolean;
+  }>;
 }
 
 interface ClientSessionPageProps {
@@ -317,55 +328,76 @@ URL: ${url}`);
            </div>
 
            {/* Schedule Status */}
-           {sessionData.schedule_enabled && (
+           {(sessionData.schedule_enabled || (sessionData.schedules && sessionData.schedules.length > 0)) && (
              <div className="p-6 bg-slate-900/50 border border-purple-500/20 rounded-3xl">
-               <h3 className="font-bold text-white mb-3 flex items-center gap-2">
-                 <Clock size={18} className="text-purple-400" />
-                 Schedule
-               </h3>
-               <div className="space-y-2 text-sm">
-                 <div className="flex items-center justify-between">
-                   <span className="text-slate-500">Type</span>
-                   <span className="text-purple-400 font-medium capitalize">{sessionData.schedule_type}</span>
+               <h3 className="font-bold text-white mb-3 flex items-center justify-between">
+                 <div className="flex items-center gap-2">
+                   <Clock size={18} className="text-purple-400" />
+                   Schedule
                  </div>
-                 {sessionData.schedule_type === 'one-time' ? (
-                   <>
-                     {sessionData.schedule_start_at && (
-                       <div className="flex items-center justify-between">
-                         <span className="text-slate-500">Start</span>
-                         <span className="text-slate-200 text-xs">{new Date(sessionData.schedule_start_at).toLocaleString('id-ID')}</span>
-                       </div>
-                     )}
-                     {sessionData.schedule_end_at && (
-                       <div className="flex items-center justify-between">
-                         <span className="text-slate-500">End</span>
-                         <span className="text-slate-200 text-xs">{new Date(sessionData.schedule_end_at).toLocaleString('id-ID')}</span>
-                       </div>
-                     )}
-                   </>
-                 ) : (
-                   <>
-                     {sessionData.schedule_days && (
-                       <div className="flex items-center justify-between">
-                         <span className="text-slate-500">Days</span>
-                         <span className="text-slate-200 text-xs">
-                           {(() => {
-                             try {
-                               return JSON.parse(sessionData.schedule_days).map((d: string) => d.slice(0, 3)).join(', ');
-                             } catch { return sessionData.schedule_days; }
-                           })()}
-                         </span>
-                       </div>
-                     )}
-                     {sessionData.schedule_start_time && sessionData.schedule_end_time && (
-                       <div className="flex items-center justify-between">
-                         <span className="text-slate-500">Time</span>
-                         <span className="text-slate-200 text-xs">{sessionData.schedule_start_time} - {sessionData.schedule_end_time}</span>
-                       </div>
-                     )}
-                   </>
+                 {sessionData.schedules && sessionData.schedules.length > 0 && (
+                   <span className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                     Multi
+                   </span>
                  )}
-               </div>
+               </h3>
+               
+               <div className="space-y-4">
+                 {/* Multi-Schedules Display */}
+                 {sessionData.schedules && sessionData.schedules.length > 0 ? (
+                   <div className="space-y-3">
+                     {sessionData.schedules.map((schedule) => (
+                       <div key={schedule.id} className="p-3 bg-slate-950/50 rounded-xl border border-white/5 space-y-1">
+                         <div className="flex items-center justify-between">
+                           <span className={`text-[10px] font-bold uppercase tracking-wider ${schedule.active ? 'text-green-400' : 'text-slate-500'}`}>
+                             {schedule.active ? '● Active' : '○ Inactive'}
+                           </span>
+                           <span className="text-[10px] text-slate-500 font-mono">
+                             {schedule.schedule_type}
+                           </span>
+                         </div>
+                         <div className="text-xs text-slate-200">
+                            {schedule.schedule_type === 'one-time' ? (
+                              <>
+                                {schedule.scheduled_at ? new Date(schedule.scheduled_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Not set'}
+                                {schedule.scheduled_end_at && (
+                                  <span className="text-slate-500 mx-1">→</span>
+                                )}
+                                {schedule.scheduled_end_at && new Date(schedule.scheduled_end_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-medium text-purple-400">
+                                  {schedule.start_time} - {schedule.end_time}
+                                </div>
+                                <div className="text-[10px] text-slate-400 mt-0.5">
+                                  {(() => {
+                                    try {
+                                      const days = typeof schedule.days_of_week === 'string' 
+                                        ? JSON.parse(schedule.days_of_week) 
+                                        : schedule.days_of_week;
+                                      return Array.isArray(days) ? days.map(d => d.slice(0, 3)).join(', ') : '';
+                                    } catch { return ''; }
+                                  })()}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                    <div className="text-center py-4 px-2 border border-dashed border-slate-800 rounded-xl">
+                      <p className="text-slate-500 text-xs italic">No multi-schedule entries configured.</p>
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="text-purple-400 text-[10px] font-bold uppercase mt-2 hover:text-purple-300 transition-colors"
+                      >
+                        + Add Schedule
+                      </button>
+                    </div>
+                  )}
+                </div>
              </div>
            )}
 

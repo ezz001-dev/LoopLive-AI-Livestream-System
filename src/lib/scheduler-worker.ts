@@ -1,8 +1,12 @@
 /**
- * Schedule Worker
+ * Schedule Worker (Multi-Schedule Support)
  * 
- * Checks for scheduled live streams every minute and executes start/stop
- * by calling the Next.js API endpoints (since FFmpeg processes live in the app process).
+ * Checks for scheduled live streams every 30 seconds and executes start/stop
+ * by calling the Next.js API endpoints.
+ * 
+ * Supports TWO sources:
+ * 1. Legacy: schedule fields directly on live_sessions table
+ * 2. NEW: Multiple schedules from session_schedules table
  * 
  * Run: npm run scheduler
  * Or: npx tsx src/lib/scheduler-worker.ts
@@ -17,7 +21,7 @@ const CHECK_INTERVAL = 30 * 1000; // 30 seconds (more responsive)
 const APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
 const SCHEDULER_API_KEY = process.env.SCHEDULER_API_KEY || "looplive-scheduler-internal-key";
 
-console.log("[Scheduler] Starting Schedule Worker...");
+console.log("[Scheduler] Starting Multi-Schedule Worker...");
 console.log("[Scheduler] App URL:", APP_BASE_URL);
 console.log("[Scheduler] Check interval:", CHECK_INTERVAL / 1000, "seconds");
 
@@ -38,122 +42,71 @@ function isTimeInRange(now: Date, startTime: string, endTime: string): boolean {
     if (startMinutes <= endMinutes) {
         return nowMinutes >= startMinutes && nowMinutes < endMinutes;
     } else {
+        // Crosses midnight (e.g., 22:00 to 06:00)
         return nowMinutes >= startMinutes || nowMinutes < endMinutes;
     }
 }
 
-function shouldExecuteOneTime(session: any, now: Date): 'start' | 'stop' | null {
-    if (!session.schedule_enabled || session.schedule_type !== 'one-time') {
-        return null;
-    }
+/**
+ * Check if the session should be RUNNING based on its schedules.
+ * Returns true if at least one active schedule matches the current time.
+ */
+function isSessionScheduledNow(sessionSchedules: any[], now: Date): boolean {
+    const activeSchedules = sessionSchedules.filter(s => s.active);
     
-    if (!session.schedule_start_at) {
-        console.log(`[Scheduler]   → No schedule_start_at set, skipping`);
-        return null;
-    }
-    
-    const scheduleStart = new Date(session.schedule_start_at);
-    const scheduleEnd = session.schedule_end_at ? new Date(session.schedule_end_at) : null;
-    const currentStatus = session.status;
-    
-    console.log(`[Scheduler]   → One-time check: now=${now.toLocaleTimeString('id-ID')}, start=${scheduleStart.toLocaleTimeString('id-ID')}, end=${scheduleEnd?.toLocaleTimeString('id-ID') || 'none'}, status=${currentStatus}`);
-    
-    if (scheduleEnd) {
-        if (now >= scheduleEnd) {
-            // Past end time
-            if (currentStatus === 'LIVE') {
-                console.log(`[Scheduler]   → DECISION: STOP (past end time, currently LIVE)`);
-                return 'stop';
-            }
-            console.log(`[Scheduler]   → Past end time but status=${currentStatus}, no action`);
-            return null;
-        }
-        
-        if (now >= scheduleStart && now < scheduleEnd) {
-            // Within window
-            if (currentStatus !== 'LIVE') {
-                console.log(`[Scheduler]   → DECISION: START (within window, not LIVE)`);
-                return 'start';
-            }
-            console.log(`[Scheduler]   → Within window, already LIVE, no action`);
-            return null;
-        }
-        
-        console.log(`[Scheduler]   → Before start time, no action`);
-        return null;
-    }
-    
-    // No end time
-    if (now >= scheduleStart) {
-        const diffMs = now.getTime() - scheduleStart.getTime();
-        const diffMinutes = diffMs / (1000 * 60);
-        
-        if (diffMinutes >= 0 && diffMinutes < 2 && currentStatus !== 'LIVE') {
-            console.log(`[Scheduler]   → DECISION: START (within 2min of start, no end time)`);
-            return 'start';
-        }
-    }
-    
-    return null;
-}
+    if (activeSchedules.length === 0) return false;
 
-function shouldExecuteRepeat(session: any, now: Date): 'start' | 'stop' | null {
-    if (!session.schedule_enabled || session.schedule_type !== 'repeat') {
-        return null;
-    }
-    
-    let days: string[] = [];
-    try {
-        days = session.schedule_days ? JSON.parse(session.schedule_days) : [];
-    } catch {
-        days = [];
-    }
-    
-    if (!days.length || !session.schedule_start_time || !session.schedule_end_time) {
-        console.log(`[Scheduler]   → Repeat: Missing days/start_time/end_time, skipping`);
-        return null;
-    }
-    
-    const today = getDayName(now);
-    const currentStatus = session.status;
-    
-    console.log(`[Scheduler]   → Repeat check: today=${today}, days=${days.join(',')}, time=${session.schedule_start_time}-${session.schedule_end_time}, status=${currentStatus}`);
-    
-    if (!days.includes(today)) {
-        if (currentStatus === 'LIVE') {
-            console.log(`[Scheduler]   → DECISION: STOP (not a scheduled day)`);
-            return 'stop';
-        }
-        console.log(`[Scheduler]   → Not a scheduled day, no action`);
-        return null;
-    }
-    
-    if (session.schedule_repeat_end) {
-        const repeatEnd = new Date(session.schedule_repeat_end);
-        if (now > repeatEnd) {
-            if (currentStatus === 'LIVE') {
-                console.log(`[Scheduler]   → DECISION: STOP (past repeat end date)`);
-                return 'stop';
+    for (const schedule of activeSchedules) {
+        // 1. One-time Schedule check
+        if (schedule.schedule_type === 'one-time') {
+            if (!schedule.scheduled_at) continue;
+            
+            const scheduleStart = new Date(schedule.scheduled_at);
+            
+            if (schedule.scheduled_end_at) {
+                const scheduleEnd = new Date(schedule.scheduled_end_at);
+                if (now >= scheduleStart && now < scheduleEnd) {
+                    return true;
+                }
+            } else {
+                // Legacy one-time behavior or no end date: 
+                // Matches if we are within a 2-minute window after the scheduled time
+                const diffMs = now.getTime() - scheduleStart.getTime();
+                const diffMinutes = diffMs / (1000 * 60);
+                
+                if (diffMinutes >= 0 && diffMinutes < 2) {
+                    return true;
+                }
             }
-            return null;
+        } 
+        // 2. Repeat Schedule check
+        else if (schedule.schedule_type === 'repeat') {
+            let days: string[] = [];
+            try {
+                days = schedule.days_of_week ? JSON.parse(schedule.days_of_week) : [];
+            } catch {
+                days = [];
+            }
+            
+            if (!days.length || !schedule.start_time || !schedule.end_time) continue;
+            
+            // Check repeat end date
+            if (schedule.repeat_end_date) {
+                const repeatEnd = new Date(schedule.repeat_end_date);
+                if (now > repeatEnd) continue;
+            }
+
+            const today = getDayName(now);
+            if (!days.includes(today)) continue;
+            
+            // Check if in time range
+            if (isTimeInRange(now, schedule.start_time, schedule.end_time)) {
+                return true;
+            }
         }
     }
     
-    const inRange = isTimeInRange(now, session.schedule_start_time, session.schedule_end_time);
-    console.log(`[Scheduler]   → In time range: ${inRange}`);
-    
-    if (inRange && currentStatus !== 'LIVE') {
-        console.log(`[Scheduler]   → DECISION: START (in range, not LIVE)`);
-        return 'start';
-    }
-    
-    if (!inRange && currentStatus === 'LIVE') {
-        console.log(`[Scheduler]   → DECISION: STOP (out of range, currently LIVE)`);
-        return 'stop';
-    }
-    
-    console.log(`[Scheduler]   → No action needed`);
-    return null;
+    return false;
 }
 
 /**
@@ -179,7 +132,7 @@ async function executeAction(sessionId: string, action: 'start' | 'stop') {
             
             await prisma.live_sessions.update({
                 where: { id: sessionId },
-                data: { last_scheduled_run: new Date() } as any
+                data: { last_scheduled_run: new Date() }
             });
         } else {
             console.error(`[Scheduler] ❌ ${action.toUpperCase()} failed (${response.status}):`, JSON.stringify(data));
@@ -190,52 +143,136 @@ async function executeAction(sessionId: string, action: 'start' | 'stop') {
     }
 }
 
-async function checkSchedules() {
+/**
+ * Check schedules from the NEW session_schedules table (multi-schedule)
+ */
+async function checkNewSchedules() {
     try {
         const now = new Date();
         
-        const scheduledSessions = await prisma.live_sessions.findMany({
+        // Get all sessions that have at least one schedule in the new table
+        const sessionsWithSchedules = await prisma.live_sessions.findMany({
             where: {
                 schedule_enabled: true
-            } as any
-        }) as any[];
+            },
+            include: {
+                schedules: true
+            }
+        });
         
-        if (scheduledSessions.length === 0) {
+        if (sessionsWithSchedules.length === 0) {
             return;
         }
         
-        console.log(`[Scheduler] ── Check at ${now.toLocaleTimeString('id-ID')} (${scheduledSessions.length} sessions) ──`);
+        console.log(`[Scheduler] ── Multi-Schedule Check at ${now.toLocaleTimeString('id-ID')} (${sessionsWithSchedules.length} sessions) ──`);
         
-        for (const session of scheduledSessions) {
-            console.log(`[Scheduler] Session: "${session.title}" (${session.id.slice(0,8)}...) type=${session.schedule_type} status=${session.status}`);
+        for (const session of sessionsWithSchedules) {
+            const schedules = session.schedules as any[];
             
-            let action: 'start' | 'stop' | null = null;
-            
-            if (session.schedule_type === 'one-time') {
-                action = shouldExecuteOneTime(session, now);
-            } else if (session.schedule_type === 'repeat') {
-                action = shouldExecuteRepeat(session, now);
+            if (schedules.length === 0) {
+                continue;
             }
             
-            if (action) {
-                console.log(`[Scheduler] 🎯 Executing ${action.toUpperCase()} for: ${session.title}`);
-                await executeAction(session.id, action);
+            console.log(`[Scheduler] Session: "${session.title}" (${session.id.slice(0,8)}...) status=${session.status}, schedules=${schedules.length}`);
+            
+            const shouldBeRunning = isSessionScheduledNow(schedules, now);
+            
+            if (session.status !== 'LIVE' && shouldBeRunning) {
+                console.log(`[Scheduler] 🎯 DECISION: START (scheduled now, not LIVE)`);
+                await executeAction(session.id, 'start');
+            } else if (session.status === 'LIVE' && !shouldBeRunning) {
+                console.log(`[Scheduler] 🎯 DECISION: STOP (not scheduled now, currently LIVE)`);
+                await executeAction(session.id, 'stop');
+            } else {
+                console.log(`[Scheduler]   → No action needed (status=${session.status}, shouldBeRunning=${shouldBeRunning})`);
             }
         }
         
     } catch (error: any) {
-        console.error("[Scheduler] Error checking schedules:", error.message);
+        console.error("[Scheduler] Error checking multi-schedules:", error.message);
     }
+}
+
+/**
+ * Legacy support: Check schedules from old live_sessions fields
+ * Note: These now use the same unified logic by being treated as a single schedule
+ */
+async function checkLegacySchedules() {
+    try {
+        const now = new Date();
+        
+        // Get sessions with legacy schedule fields enabled
+        const legacySessions = await prisma.live_sessions.findMany({
+            where: {
+                schedule_enabled: true,
+            }
+        });
+        
+        // Filter to only process legacy schedules
+        const sessionsToProcess = [];
+        for (const session of legacySessions) {
+            const newSchedules = await prisma.session_schedules.findMany({
+                where: { live_session_id: session.id }
+            });
+            // ONLY process if no new schedules exist (backward compatibility)
+            if (newSchedules.length === 0) {
+                sessionsToProcess.push(session);
+            }
+        }
+        
+        if (sessionsToProcess.length === 0) {
+            return;
+        }
+        
+        console.log(`[Scheduler] ── Legacy Schedule Check (${sessionsToProcess.length} sessions) ──`);
+        
+        for (const session of sessionsToProcess as any[]) {
+            console.log(`[Scheduler] Legacy: "${session.title}" type=${session.schedule_type}`);
+            
+            // Convert legacy fields to a virtual schedule object to use isSessionScheduledNow
+            const virtualSchedule = {
+                active: true,
+                schedule_type: session.schedule_type,
+                scheduled_at: session.schedule_start_at,
+                days_of_week: session.schedule_days,
+                start_time: session.schedule_start_time,
+                end_time: session.schedule_end_time,
+                repeat_end_date: session.schedule_repeat_end
+            };
+
+            const shouldBeRunning = isSessionScheduledNow([virtualSchedule], now);
+            
+            if (session.status !== 'LIVE' && shouldBeRunning) {
+                console.log(`[Scheduler] 🎯 Executing START for legacy: ${session.title}`);
+                await executeAction(session.id, 'start');
+            } else if (session.status === 'LIVE' && !shouldBeRunning) {
+                console.log(`[Scheduler] 🎯 Executing STOP for legacy: ${session.title}`);
+                await executeAction(session.id, 'stop');
+            }
+        }
+        
+    } catch (error: any) {
+        console.error("[Scheduler] Error checking legacy schedules:", error.message);
+    }
+}
+
+// Main check function
+async function checkAllSchedules() {
+    // First check new multi-schedule table
+    await checkNewSchedules();
+    
+    // Then check legacy fields for backward compatibility
+    await checkLegacySchedules();
 }
 
 // Main loop
 async function startScheduler() {
-    console.log("[Scheduler] ✅ Scheduler started");
+    console.log("[Scheduler] ✅ Multi-Schedule Worker started");
     
-    await checkSchedules();
+    await checkAllSchedules();
     
     setInterval(async () => {
-        await checkSchedules();
+        await checkAllSchedules();
     }, CHECK_INTERVAL);
 }
 

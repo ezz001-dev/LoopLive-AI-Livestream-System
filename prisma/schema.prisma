@@ -61,6 +61,7 @@ model live_sessions {
   updated_at          DateTime        @updatedAt
   chat_logs           chat_logs[]
   ai_reply_logs       ai_reply_logs[]
+  schedules            session_schedules[]
 }
 
 
@@ -101,4 +102,34 @@ model ai_reply_logs {
   audio_url       String?
   created_at      DateTime      @default(now())
   live_session    live_sessions @relation(fields: [live_session_id], references: [id], onDelete: Cascade)
+}
+
+// Multi-Schedule Support: Separate table for multiple schedules per session
+model session_schedules {
+  id              String        @id @default(uuid())
+  live_session_id String
+  live_session    live_sessions @relation(fields: [live_session_id], references: [id], onDelete: Cascade)
+  
+  // Schedule Type
+  schedule_type   String        @default("one-time") // "one-time" | "repeat"
+  
+  // One-time Schedule
+  scheduled_at    DateTime?     // Specific date & time for one-time
+  scheduled_end_at DateTime?    // End date & time for one-time
+  
+  // Repeat Schedule  
+  days_of_week    String?       // JSON array: ["monday","tuesday"]
+  start_time      String?       // Format HH:mm (e.g. "10:00")
+  end_time        String?       // Format HH:mm (e.g. "18:00")
+  
+  // Common
+  timezone        String        @default("Asia/Jakarta")
+  active          Boolean       @default(true)
+  repeat_end_date DateTime?     // When repeat schedule ends (optional)
+  
+  // Status tracking
+  last_run        DateTime?     // Last time this schedule ran
+  
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
 }

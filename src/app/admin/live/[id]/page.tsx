@@ -15,7 +15,8 @@ export default async function SessionControlPage({ params }: { params: { id: str
       ai_reply_logs: {
         orderBy: { created_at: "desc" },
         take: 5
-      }
+      },
+      schedules: true
     }
   });
 
