@@ -38,3 +38,16 @@ export function assertR2Env() {
     publicUrl: string;
   };
 }
+
+export function isSignedR2ReadEnabled() {
+  return process.env.R2_SIGNED_READS === "true";
+}
+
+export function getR2SignedReadTtlSeconds() {
+  const value = Number(process.env.R2_SIGNED_READ_TTL_SECONDS || "43200");
+  if (!Number.isFinite(value) || value <= 0) {
+    return 43200;
+  }
+
+  return Math.floor(value);
+}

@@ -3,9 +3,15 @@ import fs from "fs";
 import { mkdir } from "fs/promises";
 import path from "path";
 import { Readable } from "stream";
-import { assertR2Env, getStorageProvider, type StorageProvider } from "@/lib/storage-config";
+import {
+  assertR2Env,
+  getR2SignedReadTtlSeconds,
+  getStorageProvider,
+  isSignedR2ReadEnabled,
+  type StorageProvider,
+} from "@/lib/storage-config";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export type UploadedAsset = {
   id?: string;
@@ -27,6 +33,12 @@ export type VideoUploadDraft = {
   storageKey: string | null;
   filePath: string;
   publicUrl: string | null;
+};
+
+export type VideoInputSource = {
+  input: string;
+  isRemote: boolean;
+  storageProvider: StorageProvider;
 };
 
 function getSafeExtension(filename: string) {
@@ -200,18 +212,79 @@ export async function verifyUploadedVideoObject(draft: VideoUploadDraft) {
   }
 }
 
-export function resolveVideoInputSource(video: {
+export async function createSignedVideoReadUrl(storageKey: string) {
+  const env = assertR2Env();
+  const client = createR2Client();
+
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: env.bucketName,
+      Key: storageKey,
+    }),
+    { expiresIn: getR2SignedReadTtlSeconds() }
+  );
+}
+
+async function validateRemoteVideoInput(input: string) {
+  const response = await fetch(input, {
+    method: "HEAD",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Remote video source is not reachable (HTTP ${response.status})`);
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (contentType && !contentType.startsWith("video/") && !contentType.includes("octet-stream")) {
+    console.warn(`[Storage] Remote source responded with unexpected content-type: ${contentType}`);
+  }
+}
+
+export async function resolveVideoInputSource(video: {
   file_path: string;
+  storage_key?: string | null;
   storage_provider?: string | null;
   public_url?: string | null;
 }) {
+  const storageProvider = video.storage_provider === "r2" ? "r2" : "local";
+
   if (video.storage_provider === "r2") {
-    return video.public_url || video.file_path;
+    const input =
+      isSignedR2ReadEnabled() && video.storage_key
+        ? await createSignedVideoReadUrl(video.storage_key)
+        : video.public_url || video.file_path;
+
+    await validateRemoteVideoInput(input);
+
+    return {
+      input,
+      isRemote: true,
+      storageProvider,
+    } satisfies VideoInputSource;
   }
 
   if (video.file_path.startsWith("/videos/")) {
-    return path.join(process.cwd(), "public", video.file_path.replace(/^\/+/, ""));
+    const input = path.join(process.cwd(), "public", video.file_path.replace(/^\/+/, ""));
+    if (!fs.existsSync(input)) {
+      throw new Error(`Video file not found: ${input}`);
+    }
+
+    return {
+      input,
+      isRemote: false,
+      storageProvider,
+    } satisfies VideoInputSource;
   }
 
-  return video.file_path;
+  if (!fs.existsSync(video.file_path)) {
+    throw new Error(`Video file not found: ${video.file_path}`);
+  }
+
+  return {
+    input: video.file_path,
+    isRemote: false,
+    storageProvider,
+  } satisfies VideoInputSource;
 }

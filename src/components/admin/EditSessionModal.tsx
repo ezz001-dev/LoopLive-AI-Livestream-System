@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Edit2, Save, X, Youtube, Clock, Calendar, Repeat, Plus, Trash2, Pencil } from "lucide-react";
+import { Edit2, Save, X, Youtube, Clock, Calendar, Repeat, Plus, Trash2 } from "lucide-react";
 
 interface EditSessionModalProps {
   sessionId: string;

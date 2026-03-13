@@ -45,7 +45,7 @@ export async function POST(
             return NextResponse.json({ error: "Video asset not found for this session" }, { status: 404 });
         }
 
-        const videoInput = resolveVideoInputSource(session.video);
+        const videoSource = await resolveVideoInputSource(session.video);
 
         // Construct RTMP Destination
         const systemSettings = await prisma.system_settings.findUnique({ where: { id: "1" } });
@@ -65,7 +65,7 @@ export async function POST(
         }
 
         try {
-            workerManager.start(id, videoInput, rtmpUrl);
+            workerManager.start(id, videoSource.input, rtmpUrl);
         } catch (err: any) {
             console.error("[WorkerManager] Failed to start:", err);
 
@@ -107,7 +107,7 @@ export async function POST(
             console.log(`[Start API] No YouTube Video ID available — skipping YouTube chat polling.`);
         }
 
-        console.log(`[Worker System] Loop Worker started for session: ${id}`);
+        console.log(`[Worker System] Loop Worker started for session: ${id} (${videoSource.storageProvider}:${videoSource.isRemote ? "remote" : "local"})`);
         return NextResponse.json({ status: "LIVE" });
 
     } catch (error) {

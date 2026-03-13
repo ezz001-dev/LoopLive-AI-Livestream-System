@@ -31,6 +31,19 @@ class WorkerManager {
 
     console.log(`[WorkerManager] Starting stream for ${liveId} using ${videoInput}`);
 
+    const inputArgs = isRemoteInput
+      ? [
+          "-reconnect", "1",
+          "-reconnect_streamed", "1",
+          "-reconnect_on_network_error", "1",
+          "-reconnect_on_http_error", "4xx,5xx",
+          "-reconnect_delay_max", "5",
+          "-rw_timeout", "15000000",
+          "-protocol_whitelist", "file,http,https,tcp,tls,crypto",
+          "-user_agent", "LoopLive-FFmpeg/1.0",
+        ]
+      : [];
+
     /**
      * FFmpeg Command Flags:
      * -re: Read input at native frame rate.
@@ -42,6 +55,7 @@ class WorkerManager {
      * -f flv: Output format for RTMP.
      */
     const ffmpeg = spawn("ffmpeg", [
+      ...inputArgs,
       "-re",
       "-stream_loop", "-1",
       "-i", videoInput,
@@ -55,8 +69,12 @@ class WorkerManager {
       streamUrl
     ]);
 
-    // ffmpeg.stdout.on("data", (data) => console.log(`[FFmpeg ${liveId} STDOUT]: ${data}`));
-    // ffmpeg.stderr.on("data", (data) => console.error(`[FFmpeg ${liveId} STDERR]: ${data}`));
+    ffmpeg.stderr.on("data", (data) => {
+      const message = data.toString().trim();
+      if (message) {
+        console.error(`[FFmpeg ${liveId}] ${message}`);
+      }
+    });
 
 
     ffmpeg.on("close", (code) => {
