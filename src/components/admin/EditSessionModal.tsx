@@ -75,7 +75,10 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
     try {
       // Validation: Start time cannot be in the past for one-time schedules
       if (newSchedule.schedule_type === 'one-time' && newSchedule.scheduled_at) {
-        if (new Date(newSchedule.scheduled_at) < new Date()) {
+        const scheduledDate = new Date(newSchedule.scheduled_at);
+        const now = new Date();
+        // Allow up to 2 minutes in the past for "now" support
+        if (scheduledDate.getTime() < now.getTime() - (2 * 60 * 1000)) {
           throw new Error('Start time cannot be in the past');
         }
       }
@@ -108,6 +111,10 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
 
       if (!res.ok) throw new Error('Failed to add schedule');
 
+      // Update local state to show schedule as enabled
+      setFormData(prev => ({ ...prev, schedule_enabled: true }));
+      setShowSchedule(true);
+
       await loadSchedules();
       setShowAddSchedule(false);
       setNewSchedule({
@@ -133,6 +140,13 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
         method: 'DELETE',
       });
       if (!res.ok) throw new Error('Failed to delete schedule');
+      
+      // If no schedules left, the API might have disabled schedule_enabled
+      if (schedules.length <= 1) {
+        setFormData(prev => ({ ...prev, schedule_enabled: false }));
+        setShowSchedule(false);
+      }
+      
       await loadSchedules();
     } catch (err: any) {
       setError(err.message);

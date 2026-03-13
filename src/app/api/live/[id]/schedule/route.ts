@@ -103,7 +103,8 @@ export async function POST(
     if (schedule_type === "one-time" && scheduled_at) {
       const scheduledDate = new Date(scheduled_at);
       const now = new Date();
-      if (scheduledDate < now) {
+      // Allow up to 2 minutes in the past for "now" support
+      if (scheduledDate.getTime() < now.getTime() - (2 * 60 * 1000)) {
         return NextResponse.json(
           { error: "Start time cannot be in the past" },
           { status: 400 }
@@ -147,6 +148,8 @@ export async function POST(
       where: { id: sessionId },
       data: { schedule_enabled: true },
     });
+
+    console.log(`[Schedule API] ✅ Created ${schedule_type} schedule for session ${sessionId}`);
 
     return NextResponse.json({
       success: true,

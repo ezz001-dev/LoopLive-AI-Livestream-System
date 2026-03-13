@@ -56,7 +56,8 @@ export async function PATCH(
     if (scheduled_at) {
       const scheduledDate = new Date(scheduled_at);
       const now = new Date();
-      if (scheduledDate < now) {
+      // Allow up to 2 minutes in the past for "now" support
+      if (scheduledDate.getTime() < now.getTime() - (2 * 60 * 1000)) {
         return NextResponse.json(
           { error: "Start time cannot be in the past" },
           { status: 400 }
