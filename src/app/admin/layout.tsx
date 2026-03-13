@@ -2,9 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { LayoutDashboard, Video, Radio, Settings, LogOut } from "lucide-react";
-
 
 type NavLinkProps = {
   href: string;
@@ -13,15 +12,29 @@ type NavLinkProps = {
 };
 
 function NavLink({ href, icon, label }: NavLinkProps) {
+  const pathname = usePathname();
+  const isActive = pathname === href || (href !== "/admin" && pathname?.startsWith(href));
+
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800 transition-all text-slate-400 hover:text-white group"
+      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+        isActive 
+          ? "bg-slate-800 text-white border border-slate-700 shadow-lg shadow-black/20" 
+          : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+      }`}
     >
-      <span className="flex items-center gap-3 w-full">
-        {icon}
-        <span className="font-medium">{label}</span>
-      </span>
+      <>
+        <span className="flex items-center gap-3 w-full">
+          <span className={isActive ? "text-blue-400" : "group-hover:text-white transition-colors"}>
+            {icon}
+          </span>
+          <span className="font-medium">{label}</span>
+        </span>
+        {isActive && (
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+        )}
+      </>
     </Link>
   );
 }
