@@ -150,6 +150,9 @@ model system_settings {
   hls_port              Int      @default(8888)
   redis_url             String   @default("redis://localhost:6379")
   max_response_length   Int      @default(150)
+  yt_cookie             String?
+  app_base_url          String   @default("http://localhost:3000")
+  scheduler_api_key     String   @default("looplive-scheduler-internal-key")
   updated_at            DateTime @updatedAt
 }
 

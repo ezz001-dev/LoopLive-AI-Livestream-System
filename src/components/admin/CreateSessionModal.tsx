@@ -46,6 +46,16 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
         setFetchingVideos(false);
       })
       .catch(() => setFetchingVideos(false));
+
+    // Fetch default settings for initial tone
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(data => {
+        if (data.ai_tone_default) {
+          setFormData(prev => ({ ...prev, ai_tone: data.ai_tone_default }));
+        }
+      })
+      .catch(err => console.error("Failed to fetch default settings", err));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

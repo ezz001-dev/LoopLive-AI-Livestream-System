@@ -7,10 +7,25 @@ import axios from "axios";
 
 dotenv.config();
 
-const redisPub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-const redisSub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-
-console.log(`[AI-Worker] Starting AI Worker with Dynamic DB Settings...`);
+async function getSystemSettings() {
+    let settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+    if (!settings) {
+        // Fallback to defaults/env if not in DB yet
+        settings = await prisma.system_settings.create({
+            data: {
+                id: "1",
+                ai_provider: process.env.AI_PROVIDER || "openai",
+                openai_api_key: process.env.OPENAI_API_KEY,
+                gemini_api_key: process.env.GEMINI_API_KEY,
+                ai_name: "Loop",
+                ai_persona: "You are an AI Livestreamer named Loop. Respond to followers in a way that is engaging and keeps the conversation flowing.",
+                max_response_length: 150,
+                redis_url: process.env.REDIS_URL || "redis://localhost:6379"
+            }
+        });
+    }
+    return settings;
+}
 
 // Simple Context Fetcher
 async function getLiveSessionContext(liveId: string) {
@@ -26,31 +41,10 @@ async function getLiveSessionContext(liveId: string) {
     return session;
 }
 
-// --- Dynamic Provider Logic ---
-
-async function getSystemSettings() {
-    let settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
-    if (!settings) {
-        // Fallback to defaults/env if not in DB yet
-        settings = await prisma.system_settings.create({
-            data: {
-                id: "1",
-                ai_provider: process.env.AI_PROVIDER || "openai",
-                openai_api_key: process.env.OPENAI_API_KEY,
-                gemini_api_key: process.env.GEMINI_API_KEY,
-                ai_name: "Loop",
-                ai_persona: "You are an AI Livestreamer named Loop. Respond to followers in a way that is engaging and keeps the conversation flowing.",
-                max_response_length: 150
-            }
-        });
-    }
-    return settings;
-}
-
 async function generateReply(session: any, viewerMessage: string, viewerId: string) {
     const settings = await getSystemSettings();
     const provider = settings.ai_provider;
-    
+
     const recentChats = session.chat_logs
         .reverse()
         .map((c: any) => `${c.viewer_id}: ${c.message}`)
@@ -79,8 +73,8 @@ ${recentChats}
         console.log("[AI-Worker] Calling Google Gemini...");
         const apiKey = settings.gemini_api_key || process.env.GEMINI_API_KEY || "";
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash",
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
             systemInstruction: systemPrompt,
         });
         const result = await model.generateContent(userInput);
@@ -101,64 +95,79 @@ ${recentChats}
     }
 }
 
-// --- Main Message Handler ---
+let redisPub: Redis;
+let redisSub: Redis;
 
-redisSub.subscribe("chat_event_queue", (err, count) => {
-    if (err) {
-        console.error("[AI-Worker] Redis subscription error:", err);
-    } else {
-        console.log(`[AI-Worker] Subscribed to ${count} Redis channels.`);
-    }
-});
+async function startWorker() {
+    const settings = await getSystemSettings();
+    const redisUrl = settings.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
 
-redisSub.on("message", async (channel, message) => {
-    if (channel !== "chat_event_queue") return;
+    redisPub = new Redis(redisUrl);
+    redisSub = new Redis(redisUrl);
 
-    try {
-        const event = JSON.parse(message);
-        if (event.type !== "NEW_CHAT") return;
+    console.log(`[AI-Worker] Starting AI Worker on Redis: ${redisUrl}`);
 
-        const { liveId, chatId, message: viewerMessage, viewerId } = event;
-        console.log(`[AI-Worker] Processing message from ${viewerId} in session ${liveId}`);
+    // --- Main Message Handler ---
 
-        // 1. Fetch Context
-        const session = await getLiveSessionContext(liveId);
-        if (!session) {
-            console.error(`[AI-Worker] Session ${liveId} not found.`);
-            return;
+    redisSub.subscribe("chat_event_queue", (err, count) => {
+        if (err) {
+            console.error("[AI-Worker] Redis subscription error:", err);
+        } else {
+            console.log(`[AI-Worker] Subscribed to ${count} Redis channels.`);
         }
+    });
 
-        // 2. Generate Reply
-        const replyText = await generateReply(session, viewerMessage, viewerId);
-        console.log(`[AI-Worker] AI Reply: ${replyText}`);
+    redisSub.on("message", async (channel, message) => {
+        if (channel !== "chat_event_queue") return;
 
-        // 3. Save to Database
-        const aiReply = await prisma.ai_reply_logs.create({
-            data: {
-                live_session_id: liveId,
-                chat_id: chatId,
-                prompt: viewerMessage,
-                reply: replyText,
+        try {
+            const event = JSON.parse(message);
+            if (event.type !== "NEW_CHAT") return;
+
+            const { liveId, chatId, message: viewerMessage, viewerId } = event;
+            console.log(`[AI-Worker] Processing message from ${viewerId} in session ${liveId}`);
+
+            // 1. Fetch Context
+            const session = await getLiveSessionContext(liveId);
+            if (!session) {
+                console.error(`[AI-Worker] Session ${liveId} not found.`);
+                return;
             }
-        });
 
-        // 4. Publish back to WebSocket Server
-        await redisPub.publish("chat_broadcast", JSON.stringify({
-            id: aiReply.id,
-            liveId,
-            viewerId: "AI_ASSISTANT",
-            message: replyText,
-            createdAt: aiReply.created_at
-        }));
+            // 2. Generate Reply
+            const replyText = await generateReply(session, viewerMessage, viewerId);
+            console.log(`[AI-Worker] AI Reply: ${replyText}`);
 
-        // Trigger TTS
-        await redisPub.publish("ai_voice_play", JSON.stringify({
-            liveId,
-            text: replyText,
-            replyId: aiReply.id
-        }));
+            // 3. Save to Database
+            const aiReply = await prisma.ai_reply_logs.create({
+                data: {
+                    live_session_id: liveId,
+                    chat_id: chatId,
+                    prompt: viewerMessage,
+                    reply: replyText,
+                }
+            });
 
-    } catch (error: any) {
-        console.error("[AI-Worker] Error processing chat event:", error.message);
-    }
-});
+            // 4. Publish back to WebSocket Server
+            await redisPub.publish("chat_broadcast", JSON.stringify({
+                id: aiReply.id,
+                liveId,
+                viewerId: "AI_ASSISTANT",
+                message: replyText,
+                createdAt: aiReply.created_at
+            }));
+
+            // Trigger TTS
+            await redisPub.publish("ai_voice_play", JSON.stringify({
+                liveId,
+                text: replyText,
+                replyId: aiReply.id
+            }));
+
+        } catch (error: any) {
+            console.error("[AI-Worker] Error processing chat event:", error.message);
+        }
+    });
+}
+
+startWorker();

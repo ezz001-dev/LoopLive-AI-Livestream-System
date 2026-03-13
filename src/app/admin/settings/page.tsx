@@ -42,7 +42,10 @@ export default function SettingsPage() {
     rtmp_port: 1935,
     hls_port: 8888,
     redis_url: "redis://localhost:6379",
-    max_response_length: 150
+    max_response_length: 150,
+    yt_cookie: "",
+    app_base_url: "http://localhost:3000",
+    scheduler_api_key: "looplive-scheduler-internal-key"
   });
 
   const [soundEvents, setSoundEvents] = useState<SoundEvent[]>([]);
@@ -367,6 +370,51 @@ export default function SettingsPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-sm placeholder:text-slate-600" 
                   />
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-400">YouTube Cookie (for Chat Polling)</label>
+                  <textarea 
+                    name="yt_cookie"
+                    value={settings.yt_cookie || ""} 
+                    onChange={handleChange}
+                    placeholder="PASTE_COOKIE_HERE" 
+                    rows={3}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-[10px] placeholder:text-slate-600 resize-none" 
+                  />
+                  <p className="text-[10px] text-slate-500 px-1 italic">
+                    Cookies are required for restricted chats. Use a browser extension to export Netscape format or RAW cookies.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-400">App Base URL (Internal Scheduler)</label>
+                  <input 
+                    type="text"
+                    name="app_base_url"
+                    value={settings.app_base_url || ""} 
+                    onChange={handleChange}
+                    placeholder="http://localhost:3000" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600" 
+                  />
+                  <p className="text-[10px] text-slate-500 px-1 italic">
+                    The URL where your Next.js application is running.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-400">Scheduler API Key</label>
+                  <input 
+                    type="password"
+                    name="scheduler_api_key"
+                    value={settings.scheduler_api_key || ""} 
+                    onChange={handleChange}
+                    placeholder="looplive-scheduler-internal-key" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600" 
+                  />
+                  <p className="text-[10px] text-slate-500 px-1 italic">
+                    Internal security key for automated start/stop actions.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">TikTok Handle</label>
                   <input 

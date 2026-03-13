@@ -11,13 +11,17 @@ export async function GET() {
 
     if (!settings) {
       // Create default settings if they don't exist
-      settings = await prisma.system_settings.create({
+      settings = await (prisma.system_settings as any).create({
         data: {
           id: "1",
           ai_provider: process.env.AI_PROVIDER || "openai",
           tts_provider: process.env.TTS_PROVIDER || "openai",
           yt_channel_handle: process.env.YT_CHANNEL_HANDLE || "",
           redis_url: process.env.REDIS_URL || "redis://localhost:6379",
+          max_response_length: 150,
+          yt_cookie: "",
+          app_base_url: "http://localhost:3000",
+          scheduler_api_key: "looplive-scheduler-internal-key"
         },
       });
     }
@@ -51,7 +55,10 @@ export async function PATCH(request: Request) {
       "rtmp_port",
       "hls_port",
       "redis_url",
-      "max_response_length"
+      "max_response_length",
+      "yt_cookie",
+      "app_base_url",
+      "scheduler_api_key"
     ];
 
     const updateData: any = {};

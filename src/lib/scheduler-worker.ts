@@ -18,11 +18,23 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 const CHECK_INTERVAL = 30 * 1000; // 30 seconds (more responsive)
-const APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
-const SCHEDULER_API_KEY = process.env.SCHEDULER_API_KEY || "looplive-scheduler-internal-key";
+
+let APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
+let SCHEDULER_API_KEY = process.env.SCHEDULER_API_KEY || "looplive-scheduler-internal-key";
+
+async function refreshSettings() {
+    try {
+        const settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+        if (settings) {
+            APP_BASE_URL = (settings as any).app_base_url || APP_BASE_URL;
+            SCHEDULER_API_KEY = (settings as any).scheduler_api_key || SCHEDULER_API_KEY;
+        }
+    } catch (err: any) {
+        console.error("[Scheduler] Error fetching settings:", err.message);
+    }
+}
 
 console.log("[Scheduler] Starting Multi-Schedule Worker...");
-console.log("[Scheduler] App URL:", APP_BASE_URL);
 console.log("[Scheduler] Check interval:", CHECK_INTERVAL / 1000, "seconds");
 
 // Day name mapping
@@ -258,6 +270,8 @@ async function checkLegacySchedules() {
 
 // Main check function
 async function checkAllSchedules() {
+    await refreshSettings();
+    
     // First check new multi-schedule table
     await checkNewSchedules();
     
@@ -268,13 +282,26 @@ async function checkAllSchedules() {
 // Main loop
 async function startScheduler() {
     console.log("[Scheduler] ✅ Multi-Schedule Worker started");
-    
+    console.log("[Scheduler] Initial App URL:", APP_BASE_URL);
+
     await checkAllSchedules();
     
     setInterval(async () => {
         await checkAllSchedules();
     }, CHECK_INTERVAL);
 }
+
+process.on('SIGINT', () => {
+    console.log("[Scheduler] Shutting down...");
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log("[Scheduler] Shutting down...");
+    process.exit(0);
+});
+
+startScheduler();
 
 process.on('SIGINT', () => {
     console.log("[Scheduler] Shutting down...");

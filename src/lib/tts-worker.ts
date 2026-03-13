@@ -9,9 +9,6 @@ import { EdgeTTS } from '@andresaya/edge-tts';
 
 dotenv.config();
 
-const redisPub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-const redisSub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-
 const AUDIO_DIR = path.join(process.cwd(), "public", "audio");
 if (!fs.existsSync(AUDIO_DIR)) {
     fs.mkdirSync(AUDIO_DIR, { recursive: true });
@@ -28,6 +25,7 @@ async function getSystemSettings() {
                 tts_provider: process.env.TTS_PROVIDER || "openai",
                 openai_api_key: process.env.OPENAI_API_KEY,
                 gemini_api_key: process.env.GEMINI_API_KEY,
+                redis_url: process.env.REDIS_URL || "redis://localhost:6379"
             }
         });
     }
@@ -83,93 +81,108 @@ async function ttsWithEdge(text: string, filepath: string) {
     await tts.toFile(baseFilepath);
 }
 
-// --- Main Message Handler ---
+let redisPub: Redis;
+let redisSub: Redis;
 
-redisSub.subscribe("ai_voice_play", (err, count) => {
-    if (err) {
-        console.error("[TTS-Worker] Redis subscription error:", err);
-    } else {
-        console.log(`[TTS-Worker] Subscribed to ${count} Redis channels.`);
-    }
-});
+async function startWorker() {
+    const settings = await getSystemSettings();
+    const redisUrl = settings.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
+    
+    redisPub = new Redis(redisUrl);
+    redisSub = new Redis(redisUrl);
 
-redisSub.on("message", async (channel, message) => {
-    if (channel !== "ai_voice_play") return;
+    console.log(`[TTS-Worker] Starting TTS Worker on Redis: ${redisUrl}`);
 
-    try {
-        const data = JSON.parse(message);
-        const { liveId, text, replyId } = data;
+    // --- Main Message Handler ---
 
-        if (!liveId || !text || !replyId) return;
-
-        const filename = `${replyId}.mp3`;
-        const filepath = path.join(AUDIO_DIR, filename);
-
-        const settings = await getSystemSettings();
-        const provider = settings.tts_provider;
-        
-        let success = false;
-
-        // Try selected provider
-        if (provider === "gemini") {
-            try {
-                const apiKey = settings.gemini_api_key || process.env.GEMINI_API_KEY || "";
-                await ttsWithGemini(text, filepath, apiKey);
-                success = true;
-                console.log(`[TTS-Worker] ✅ Gemini TTS succeeded`);
-            } catch (error: any) {
-                console.error(`[TTS-Worker] ❌ Gemini TTS failed: ${error.message}`);
-            }
-        } else if (provider === "openai") {
-            try {
-                const apiKey = settings.openai_api_key || process.env.OPENAI_API_KEY || "";
-                await ttsWithOpenAI(text, filepath, apiKey);
-                success = true;
-                console.log(`[TTS-Worker] ✅ OpenAI TTS succeeded`);
-            } catch (error: any) {
-                console.error(`[TTS-Worker] ❌ OpenAI TTS failed: ${error.message}`);
-            }
-        } else if (provider === "edge") {
-            try {
-                await ttsWithEdge(text, filepath);
-                success = true;
-                console.log(`[TTS-Worker] ✅ Edge TTS succeeded`);
-            } catch (error: any) {
-                console.error(`[TTS-Worker] ❌ Edge TTS failed: ${error.message}`);
-            }
+    redisSub.subscribe("ai_voice_play", (err, count) => {
+        if (err) {
+            console.error("[TTS-Worker] Redis subscription error:", err);
+        } else {
+            console.log(`[TTS-Worker] Subscribed to ${count} Redis channels.`);
         }
+    });
 
-        // Fallback to Edge if others failed
-        if (!success && provider !== "edge") {
-            console.log(`[TTS-Worker] 🔄 Trying Edge TTS fallback...`);
-            try {
-                await ttsWithEdge(text, filepath);
-                success = true;
-                console.log(`[TTS-Worker] ✅ Edge TTS fallback succeeded`);
-            } catch (e: any) {
-                console.error(`[TTS-Worker] ❌ Edge TTS fallback failed: ${e.message}`);
+    redisSub.on("message", async (channel, message) => {
+        if (channel !== "ai_voice_play") return;
+
+        try {
+            const data = JSON.parse(message);
+            const { liveId, text, replyId } = data;
+
+            if (!liveId || !text || !replyId) return;
+
+            const filename = `${replyId}.mp3`;
+            const filepath = path.join(AUDIO_DIR, filename);
+
+            const latestSettings = await getSystemSettings();
+            const provider = latestSettings.tts_provider;
+            
+            let success = false;
+
+            // Try selected provider
+            if (provider === "gemini") {
+                try {
+                    const apiKey = latestSettings.gemini_api_key || process.env.GEMINI_API_KEY || "";
+                    await ttsWithGemini(text, filepath, apiKey);
+                    success = true;
+                    console.log(`[TTS-Worker] ✅ Gemini TTS succeeded`);
+                } catch (error: any) {
+                    console.error(`[TTS-Worker] ❌ Gemini TTS failed: ${error.message}`);
+                }
+            } else if (provider === "openai") {
+                try {
+                    const apiKey = latestSettings.openai_api_key || process.env.OPENAI_API_KEY || "";
+                    await ttsWithOpenAI(text, filepath, apiKey);
+                    success = true;
+                    console.log(`[TTS-Worker] ✅ OpenAI TTS succeeded`);
+                } catch (error: any) {
+                    console.error(`[TTS-Worker] ❌ OpenAI TTS failed: ${error.message}`);
+                }
+            } else if (provider === "edge") {
+                try {
+                    await ttsWithEdge(text, filepath);
+                    success = true;
+                    console.log(`[TTS-Worker] ✅ Edge TTS succeeded`);
+                } catch (error: any) {
+                    console.error(`[TTS-Worker] ❌ Edge TTS failed: ${error.message}`);
+                }
             }
+
+            // Fallback to Edge if others failed
+            if (!success && provider !== "edge") {
+                console.log(`[TTS-Worker] 🔄 Trying Edge TTS fallback...`);
+                try {
+                    await ttsWithEdge(text, filepath);
+                    success = true;
+                    console.log(`[TTS-Worker] ✅ Edge TTS fallback succeeded`);
+                } catch (e: any) {
+                    console.error(`[TTS-Worker] ❌ Edge TTS fallback failed: ${e.message}`);
+                }
+            }
+
+            if (!success) {
+                console.error(`[TTS-Worker] All TTS providers failed for reply ${replyId}`);
+                return;
+            }
+
+            const relativeAudioUrl = `/audio/${filename}`;
+            await prisma.ai_reply_logs.update({
+                where: { id: replyId },
+                data: { audio_url: relativeAudioUrl }
+            });
+
+            await redisPub.publish("ai_audio_ready", JSON.stringify({
+                liveId,
+                replyId,
+                audioUrl: relativeAudioUrl,
+                text
+            }));
+
+        } catch (error: any) {
+            console.error("[TTS-Worker] Error processing TTS event:", error.message);
         }
+    });
+}
 
-        if (!success) {
-            console.error(`[TTS-Worker] All TTS providers failed for reply ${replyId}`);
-            return;
-        }
-
-        const relativeAudioUrl = `/audio/${filename}`;
-        await prisma.ai_reply_logs.update({
-            where: { id: replyId },
-            data: { audio_url: relativeAudioUrl }
-        });
-
-        await redisPub.publish("ai_audio_ready", JSON.stringify({
-            liveId,
-            replyId,
-            audioUrl: relativeAudioUrl,
-            text
-        }));
-
-    } catch (error: any) {
-        console.error("[TTS-Worker] Error processing TTS event:", error.message);
-    }
-});
+startWorker();

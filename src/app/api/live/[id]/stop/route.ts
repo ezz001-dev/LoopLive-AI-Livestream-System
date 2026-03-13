@@ -6,14 +6,17 @@ import Redis from "ioredis";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const redisPub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-
+// Redis is initialized per-request
 export async function POST(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
   ) {
   try {
     const id = (await params).id;
+
+    const settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+    const redisUrl = settings?.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
+    const redisPub = new Redis(redisUrl);
 
     const session = await prisma.live_sessions.findUnique({ where: { id } });
 

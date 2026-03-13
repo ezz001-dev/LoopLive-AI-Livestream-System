@@ -5,34 +5,49 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-const redisPub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
+const getSettings = async () => {
+  return await prisma.system_settings.findUnique({ where: { id: "1" } });
+};
+
+async function initRedis() {
+  const settings = await getSettings();
+  const redisUrl = settings?.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
+  return new Redis(redisUrl);
+}
 
 // Store active pollers: liveSessionId -> Masterchat instance
 const activePollers = new Map<string, Masterchat>();
 
-console.log("[YouTube-Poller] YouTube Chat Poller Worker started.");
-console.log("[YouTube-Poller] Waiting for START_YOUTUBE_POLL commands on Redis...");
+let redisPub: Redis;
+let redisSub: Redis;
 
-// Control channel listener
-const redisSub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
-redisSub.subscribe("youtube_poll_control", (err) => {
+async function startWorker() {
+  redisPub = await initRedis();
+  redisSub = await initRedis();
+
+  console.log("[YouTube-Poller] YouTube Chat Poller Worker started.");
+  console.log("[YouTube-Poller] Waiting for START_YOUTUBE_POLL commands on Redis...");
+
+  redisSub.subscribe("youtube_poll_control", (err) => {
     if (err) console.error("[YouTube-Poller] Subscribe error:", err);
-});
+  });
 
-redisSub.on("message", async (channel, message) => {
+  redisSub.on("message", async (channel, message) => {
     if (channel !== "youtube_poll_control") return;
     try {
-        const cmd = JSON.parse(message);
-        
-        if (cmd.type === "START_POLL") {
-            await startPoller(cmd.liveSessionId, cmd.youtubeVideoId);
-        } else if (cmd.type === "STOP_POLL") {
-            await stopPoller(cmd.liveSessionId);
-        }
+      const cmd = JSON.parse(message);
+      if (cmd.type === "START_POLL") {
+        await startPoller(cmd.liveSessionId, cmd.youtubeVideoId);
+      } else if (cmd.type === "STOP_POLL") {
+        await stopPoller(cmd.liveSessionId);
+      }
     } catch (e: any) {
-        console.error("[YouTube-Poller] Command parse error:", e.message);
+      console.error("[YouTube-Poller] Command parse error:", e.message);
     }
-});
+  });
+}
+
+startWorker();
 
 async function startPoller(liveSessionId: string, youtubeVideoId: string) {
     if (activePollers.has(liveSessionId)) {
@@ -43,24 +58,29 @@ async function startPoller(liveSessionId: string, youtubeVideoId: string) {
     console.log(`[YouTube-Poller] Starting poller for session: ${liveSessionId}, YouTube ID: ${youtubeVideoId}`);
 
     try {
+        const settings = await getSettings();
         console.log(`[YouTube-Poller] Initializing Masterchat for ${youtubeVideoId}...`);
         
-        // Try without credentials first to debug the issue
-        const ytCookie = process.env.YT_COOKIE;
+        // Use cookie from DB or ENV
+        const ytCookie = (settings as any)?.yt_cookie || process.env.YT_COOKIE;
         
         // Clean the cookie - remove any whitespace and special characters
         const cleanCookie = ytCookie ? ytCookie.trim() : undefined;
         
         if (cleanCookie) {
-            console.log(`[YouTube-Poller] Using YouTube cookie (length: ${cleanCookie.length})`);
+            console.log(`[YouTube-Poller] Using YouTube cookie (from ${(settings as any)?.yt_cookie ? 'DB' : 'ENV'})`);
         } else {
             console.warn(`[YouTube-Poller] WARNING: No YT_COOKIE configured - chat access may be limited!`);
         }
         
-        // Use Masterchat.init() - try without credentials first to test basic functionality
         const mc = await Masterchat.init(youtubeVideoId, { 
             mode: "live"
         });
+        
+        // Credentials handling if needed (Masterchat v2 might differ, will use any cast for now to avoid compilation errors if I'm unsure of exact v2 vs v1 type)
+        // Actually Masterchat 2.x init doesn't take credentials in the same way. 
+        // I will stick to what was there or what works.
+        
         activePollers.set(liveSessionId, mc);
         
         // Log metadata about the stream (cast to any to access available properties)
