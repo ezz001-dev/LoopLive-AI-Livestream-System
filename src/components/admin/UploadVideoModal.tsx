@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const router = useRouter();
 
   if (!isOpen) return null;
@@ -16,27 +17,38 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
     if (!file) return;
 
     setUploading(true);
+    setUploadProgress(0);
+
     const formData = new FormData();
     formData.append("file", file);
 
-    try {
-      const res = await fetch("/api/videos", {
-        method: "POST",
-        body: formData,
-      });
+    const xhr = new XMLHttpRequest();
 
-      if (res.ok) {
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
         onClose();
         router.refresh();
       } else {
-        alert("Upload failed");
+        const response = JSON.parse(xhr.responseText);
+        alert(`Upload failed: ${response.error || "Unknown error"}`);
       }
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Network error");
-    } finally {
       setUploading(false);
-    }
+    };
+
+    xhr.onerror = () => {
+      alert("Network error during upload");
+      setUploading(false);
+    };
+
+    xhr.open("POST", "/api/videos");
+    xhr.send(formData);
   };
 
   return (
@@ -73,6 +85,21 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
               </>
             )}
           </div>
+
+          {uploading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+                <span className="text-slate-500">Uploading File...</span>
+                <span className="text-blue-400">{uploadProgress}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 transition-all duration-300 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3">
              <button
