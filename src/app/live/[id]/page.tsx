@@ -5,6 +5,9 @@ import Hls from "hls.js";
 import { io, Socket } from "socket.io-client";
 import { Send, User, Bot, Sparkles, MessageCircle, Info, Radio, Volume2, VolumeX } from "lucide-react";
 
+const SILENT_AUDIO_DATA_URI =
+  "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAAAAAA";
+
 interface Message {
   id?: string;
   viewerId: string;
@@ -25,6 +28,45 @@ export default function PublicLivePage({ params }: { params: Promise<{ id: strin
   const [isLive, setIsLive] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const audioEnabledRef = useRef(false);
+
+  const playAudioWithRetry = async (audioUrl: string, retries = 5) => {
+    if (!audioRef.current) return;
+
+    const audioUrlWithCacheBust = `${audioUrl}${audioUrl.includes("?") ? "&" : "?"}t=${Date.now()}`;
+
+    try {
+      audioRef.current.src = audioUrlWithCacheBust;
+      audioRef.current.load();
+      await audioRef.current.play();
+      console.log("[PublicLivePage] Playback started successfully");
+    } catch (e: any) {
+      if (retries > 0) {
+        console.warn(`[PublicLivePage] Playback failed, retrying in 500ms... (${retries} left). Error: ${e.message}`);
+        setTimeout(() => {
+          void playAudioWithRetry(audioUrl, retries - 1);
+        }, 500);
+      } else {
+        console.error("[PublicLivePage] All playback attempts failed:", e);
+      }
+    }
+  };
+
+  const unlockAudio = async () => {
+    if (!audioRef.current) return;
+
+    try {
+      audioRef.current.src = SILENT_AUDIO_DATA_URI;
+      audioRef.current.muted = true;
+      audioRef.current.load();
+      await audioRef.current.play();
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.muted = false;
+      console.log("[PublicLivePage] Audio unlocked successfully");
+    } catch (err) {
+      console.warn("[PublicLivePage] Initial audio unlock failed:", err);
+    }
+  };
 
   // Sync ref with state to allow access inside socket closure without reconnection
   useEffect(() => {
@@ -132,8 +174,7 @@ Details: ${e.message}`);
     s.on("play_sound", async (data: { audioUrl: string }) => {
       console.log("[PublicLivePage] 🔊 play_sound event received:", data.audioUrl);
       if (audioRef.current && audioEnabledRef.current) {
-        const sound = new Audio(`${data.audioUrl}?t=${Date.now()}`);
-        sound.play().catch(e => console.error("[PublicLivePage] Failed to play sound:", e));
+        void playAudioWithRetry(data.audioUrl);
       }
     });
 
@@ -208,8 +249,8 @@ Details: ${e.message}`);
             {/* Audio Unlock Button */}
             <button 
                 onClick={() => {
-                    if (audioRef.current) {
-                        audioRef.current.play().catch(() => {});
+                    if (!audioEnabled) {
+                        void unlockAudio();
                     }
                     setAudioEnabled(!audioEnabled);
                 }}

@@ -3,51 +3,51 @@ import { ArrowRight, Check, Radio, Settings2, Sparkles, Video, Waves } from "luc
 
 const highlights = [
   {
-    title: "Looped Broadcast Engine",
-    description: "Putar video berulang 24/7, kirim ke RTMP, dan biarkan FFmpeg menangani ritme live tanpa jeda.",
+    title: "Live Nonstop Lebih Mudah",
+    description: "Putar video berulang tanpa repot dan biarkan sistem menjaga alur live tetap jalan stabil sepanjang hari.",
     icon: <Radio size={20} />,
   },
   {
-    title: "R2-Ready Asset Flow",
-    description: "Upload video langsung ke storage modern tanpa membebani disk VPS, lalu stream dari URL yang tervalidasi.",
+    title: "Upload Sekali, Pakai Kapan Saja",
+    description: "Simpan asset video dengan rapi, lalu gunakan kembali untuk sesi live berikutnya tanpa upload ulang.",
     icon: <Video size={20} />,
   },
   {
-    title: "Scheduler + AI Control",
-    description: "Atur jadwal multi-session, persona AI, dan automasi live dari satu dashboard operasional.",
+    title: "Atur Live dari Satu Tempat",
+    description: "Kelola jadwal, persona AI, dan tujuan live YouTube atau TikTok dari dashboard yang simpel.",
     icon: <Settings2 size={20} />,
   },
 ];
 
 const stats = [
-  { label: "Streaming Core", value: "FFmpeg + RTMP" },
-  { label: "Storage Path", value: "Local / R2" },
-  { label: "Control Surface", value: "Admin Dashboard" },
+  { label: "Platform", value: "YouTube + TikTok" },
+  { label: "Asset Storage", value: "Local / R2" },
+  { label: "Control Center", value: "Dashboard Web" },
 ];
 
 const workflow = [
   {
     step: "01",
-    title: "Upload Asset",
-    description: "Masukkan video loop ke library, simpan ke local atau Cloudflare R2, lalu daftarkan metadata otomatis.",
+    title: "Upload Video",
+    description: "Masukkan video ke library dan simpan dengan rapi agar siap dipakai untuk sesi live kapan saja.",
   },
   {
     step: "02",
-    title: "Compose Session",
-    description: "Pilih video, atur persona AI, target RTMP, YouTube ID, dan jadwal multi-session dari dashboard.",
+    title: "Siapkan Sesi Live",
+    description: "Pilih video, tentukan tujuan live, atur persona AI, lalu simpan sesi sesuai kebutuhan Anda.",
   },
   {
     step: "03",
-    title: "Run & Monitor",
-    description: "FFmpeg memutar loop, scheduler mengatur start-stop, dan chat/AI workflow berjalan paralel.",
+    title: "Jalankan dan Pantau",
+    description: "Mulai live, pantau status stream, dan biarkan workflow berjalan tanpa harus diawasi terus-menerus.",
   },
 ];
 
 const featureMatrix = [
-  { label: "Direct R2 Upload", status: "Active" },
-  { label: "Loop Stream Worker", status: "Active" },
-  { label: "Multi Scheduler", status: "Active" },
-  { label: "YouTube Chat Polling", status: "Ready" },
+  { label: "Upload Video Langsung", status: "Ready" },
+  { label: "Loop Stream Otomatis", status: "Ready" },
+  { label: "Jadwal Multi Session", status: "Ready" },
+  { label: "Monitoring Chat YouTube", status: "Active" },
 ];
 
 export default function Home() {
@@ -88,19 +88,19 @@ export default function Home() {
           <div className="max-w-3xl">
             <div className="reveal-soft reveal-delay-1 mb-6 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.24em] text-sky-300">
               <Sparkles size={14} />
-              AI-native livestream operations
+              Bikin live lebih praktis
             </div>
 
             <h1 className="reveal-soft reveal-delay-2 max-w-4xl text-5xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Bangun live stream
+              Kelola live stream
               <span className="block bg-gradient-to-r from-sky-300 via-cyan-200 to-blue-400 bg-clip-text text-transparent">
-                otomatis, stabil, dan siap 24/7
+                lebih simpel, stabil, dan siap jalan terus
               </span>
             </h1>
 
             <p className="reveal-soft reveal-delay-3 mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-              LoopLive AI menyatukan upload asset, FFmpeg loop streaming, chat polling, persona AI, dan multi scheduler
-              dalam satu workflow operasional yang ringkas untuk tim creator maupun eksperimen internal.
+              LoopLive AI membantu Anda menyiapkan video, membuat sesi live, mengatur jadwal, dan menjalankan stream
+              ke YouTube atau TikTok dari satu dashboard yang mudah dipahami.
             </p>
 
             <div className="reveal-soft reveal-delay-4 mt-8 flex flex-col gap-3 sm:flex-row">
@@ -139,7 +139,7 @@ export default function Home() {
               <div className="flex items-center justify-between border-b border-white/10 pb-5">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">System Focus</p>
-                  <h2 className="mt-2 text-2xl font-black text-white">Control the loop. Keep the stream alive.</h2>
+                  <h2 className="mt-2 text-2xl font-black text-white">Semua kebutuhan live Anda, dalam satu alur kerja.</h2>
                 </div>
                 <div className="rounded-2xl border border-sky-400/20 bg-sky-400/10 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.24em] text-sky-300">
                   Ready
@@ -166,10 +166,10 @@ export default function Home() {
               </div>
 
               <div className="mt-6 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-300">Operational Note</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-300">Kenapa Ini Membantu</p>
                 <p className="mt-2 text-sm leading-6 text-slate-200">
-                  Cocok untuk alur live loop YouTube, eksperimen AI host, dan deployment VPS yang perlu tetap ringan
-                  saat upload maupun playback asset video.
+                  Cocok untuk creator atau tim kecil yang ingin live lebih rapi, lebih terjadwal, dan tidak terus
+                  menerus mengurus hal teknis saat stream berjalan.
                 </p>
               </div>
             </div>
@@ -180,10 +180,10 @@ export default function Home() {
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Workflow Preview</p>
-              <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">Tiga langkah dari asset sampai live stream</h2>
+              <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">Tiga langkah sederhana sampai live berjalan</h2>
             </div>
             <div className="hidden rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400 lg:block">
-              Built for repeatable ops
+              Dibuat untuk workflow berulang
             </div>
           </div>
 
@@ -210,10 +210,10 @@ export default function Home() {
           <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
             <div className="rounded-[1.75rem] border border-white/10 bg-gradient-to-br from-sky-400/10 via-white/[0.04] to-transparent p-6">
               <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">System Status</p>
-              <h2 className="mt-2 text-2xl font-black text-white">Operational snapshot untuk alur live modern</h2>
+              <h2 className="mt-2 text-2xl font-black text-white">Ringkasan fitur inti yang siap dipakai</h2>
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                Desain sistem sekarang sudah mendukung upload yang lebih ringan, playback berbasis URL, dan kontrol sesi
-                live yang lebih siap untuk workflow berulang.
+                Halaman ini merangkum kemampuan utama LoopLive AI untuk membantu Anda mengelola live dengan lebih tenang
+                dan terstruktur.
               </p>
             </div>
 
@@ -242,11 +242,11 @@ export default function Home() {
               <div className="max-w-2xl">
                 <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-300">Next Move</p>
                 <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">
-                  Pilih langkah berikutnya dan lanjutkan workflow live Anda.
+                  Mulai dari langkah yang paling Anda butuhkan hari ini.
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
-                  Mulai dari upload asset, buat sesi stream baru, atau rapikan konfigurasi inti sistem sebelum live
-                  berjalan penuh.
+                  Anda bisa mulai dengan upload video, membuat sesi live baru, atau merapikan pengaturan inti sebelum
+                  stream dijalankan.
                 </p>
               </div>
 
@@ -259,7 +259,7 @@ export default function Home() {
                     <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Asset</span>
                     <span className="mt-3 block text-lg font-bold text-white">Upload Video</span>
                     <span className="mt-2 block text-sm leading-6 text-slate-400">
-                      Tambahkan video loop baru ke library dan siapkan source stream.
+                      Tambahkan video baru ke library agar siap dipakai untuk live berikutnya.
                     </span>
                     <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
                       <span>Open Videos</span>
@@ -276,7 +276,7 @@ export default function Home() {
                     <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Session</span>
                     <span className="mt-3 block text-lg font-bold text-white">Create Session</span>
                     <span className="mt-2 block text-sm leading-6 text-slate-400">
-                      Susun sesi live baru, pilih video, RTMP target, dan persona AI.
+                      Buat sesi live baru, pilih video, dan tentukan tujuan stream dengan cepat.
                     </span>
                     <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
                       <span>Open Live Sessions</span>
@@ -293,7 +293,7 @@ export default function Home() {
                     <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Config</span>
                     <span className="mt-3 block text-lg font-bold text-white">Settings</span>
                     <span className="mt-2 block text-sm leading-6 text-slate-400">
-                      Atur provider AI, cookie YouTube, Redis, R2, dan parameter sistem.
+                      Rapikan koneksi platform, AI, dan storage agar semua siap dipakai saat live.
                     </span>
                     <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
                       <span>Open Settings</span>

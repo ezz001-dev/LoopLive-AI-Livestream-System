@@ -199,8 +199,8 @@ export default function SettingsPage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Settings</h2>
-          <p className="text-slate-500 mt-1">Manage your system configuration and AI personality.</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Pengaturan</h2>
+          <p className="text-slate-500 mt-1">Rapikan koneksi platform, AI, dan alur kerja live Anda di sini.</p>
         </div>
         <div className="flex items-center gap-4">
           {error && (
@@ -225,7 +225,7 @@ export default function SettingsPage() {
             ) : (
               activeTab === "sound_events" ? <Loader2 size={18} /> : <Save size={18} />
             )}
-            <span>{saving ? "Saving..." : saved ? "Saved!" : activeTab === "sound_events" ? "Refresh" : "Save Changes"}</span>
+            <span>{saving ? "Menyimpan..." : saved ? "Tersimpan!" : activeTab === "sound_events" ? "Muat Ulang" : "Simpan Perubahan"}</span>
           </button>
         </div>
       </div>

@@ -29,8 +29,8 @@ export default async function VideosPage() {
           <div className="h-16 w-16 rounded-full bg-slate-900 flex items-center justify-center text-slate-500 group-hover:text-blue-400 group-hover:scale-110 transition-all border border-slate-800">
             <Plus size={32} />
           </div>
-          <p className="mt-4 text-slate-300 font-medium whitespace-nowrap">Upload New Asset</p>
-          <p className="mt-1 text-slate-500 text-xs">Supports MP4, MOV up to 2GB</p>
+          <p className="mt-4 text-slate-300 font-medium whitespace-nowrap">Tambah Video Baru</p>
+          <p className="mt-1 text-slate-500 text-xs">Dukungan MP4 dan MOV hingga 2GB</p>
         </div>
 
         {(videos.map((video) => (
@@ -41,7 +41,7 @@ export default async function VideosPage() {
 
       {videos.length === 0 && (
         <div className="py-20 text-center text-slate-500">
-          <p className="text-lg">No videos uploaded yet.</p>
+          <p className="text-lg">Belum ada video yang ditambahkan.</p>
         </div>
       )}
     </div>

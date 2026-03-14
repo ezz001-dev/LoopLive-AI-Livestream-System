@@ -160,7 +160,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-          <h3 className="font-bold text-white uppercase tracking-widest text-xs">Upload New Asset</h3>
+          <h3 className="font-bold text-white uppercase tracking-widest text-xs">Tambah Video Baru</h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 transition-colors">
             <X size={18} />
           </button>

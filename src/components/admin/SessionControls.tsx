@@ -78,10 +78,10 @@ export default function SessionControls({ sessionId, initialStatus, initialYoutu
           >
             <div className="flex items-center gap-2">
               <Youtube className="text-red-500" size={18} />
-              <span className="text-sm font-medium text-slate-300">Current YouTube ID</span>
+              <span className="text-sm font-medium text-slate-300">YouTube ID Saat Ini</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-blue-400">{initialYoutubeId || "Not set"}</span>
+              <span className="text-xs font-mono text-blue-400">{initialYoutubeId || "Belum ada"}</span>
               <RefreshCw size={14} className={`text-slate-400 transition-transform ${showYtInput ? "rotate-180" : ""}`} />
             </div>
           </button>
@@ -92,7 +92,7 @@ export default function SessionControls({ sessionId, initialStatus, initialYoutu
                 type="text"
                 value={youtubeId}
                 onChange={(e) => setYoutubeId(e.target.value)}
-                placeholder="Enter new YouTube Video ID or URL"
+                placeholder="Masukkan Video ID atau URL YouTube"
                 className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-sm font-mono focus:border-blue-500 focus:outline-none"
               />
               <button
@@ -100,12 +100,12 @@ export default function SessionControls({ sessionId, initialStatus, initialYoutu
                 disabled={ytLoading || !youtubeId.trim()}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {ytLoading ? <RefreshCw size={16} className="animate-spin" /> : "Update"}
+                {ytLoading ? <RefreshCw size={16} className="animate-spin" /> : "Simpan"}
               </button>
             </div>
           )}
           <p className="text-xs text-slate-500 mt-2">
-            Change YouTube Video ID while LIVE to read comments from a different stream
+            Ubah Video ID YouTube saat LIVE jika ingin membaca chat dari stream yang berbeda.
           </p>
         </div>
       )}
@@ -123,7 +123,7 @@ export default function SessionControls({ sessionId, initialStatus, initialYoutu
         >
           <>
             {loading ? <RefreshCw size={20} className="animate-spin" /> : <Play size={20} />}
-            <span>Start Livestream</span>
+            <span>Mulai Live</span>
           </>
         </button>
         <button
@@ -137,7 +137,7 @@ export default function SessionControls({ sessionId, initialStatus, initialYoutu
         >
           <>
             {loading ? <RefreshCw size={20} className="animate-spin" /> : <StopCircle size={20} />}
-            <span>Terminate Stream</span>
+            <span>Hentikan Live</span>
           </>
         </button>
       </div>

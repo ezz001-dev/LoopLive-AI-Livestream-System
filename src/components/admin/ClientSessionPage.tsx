@@ -7,6 +7,9 @@ import SessionControls from "@/components/admin/SessionControls";
 import EditSessionModal from "@/components/admin/EditSessionModal";
 import Link from "next/link";
 
+const SILENT_AUDIO_DATA_URI =
+  "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAAAAAA";
+
 interface SessionData {
   id: string;
   title: string;
@@ -67,7 +70,48 @@ export default function ClientSessionPage({ session }: ClientSessionPageProps) {
   const audioEnabledRef = useRef(false);
   const lastAudioUrlRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const playRetryCountRef = useRef(0);
+
+  const playAudioWithRetry = async (audioUrl: string, retries = 5) => {
+    if (!audioRef.current) return;
+
+    const audioUrlWithCacheBust = `${audioUrl}${audioUrl.includes("?") ? "&" : "?"}t=${Date.now()}`;
+
+    try {
+      audioRef.current.src = audioUrlWithCacheBust;
+      audioRef.current.load();
+      await audioRef.current.play();
+      console.log("[ClientSessionPage] Playback started successfully");
+    } catch (e: any) {
+      if (retries > 0) {
+        console.warn(`[ClientSessionPage] Playback failed, retrying in 500ms... (${retries} left). Error: ${e.message}`);
+        setTimeout(() => {
+          void playAudioWithRetry(audioUrl, retries - 1);
+        }, 500);
+      } else {
+        console.error("[ClientSessionPage] All playback attempts failed:", e);
+        if (!e.message.includes("interrupted") && !e.message.includes("interaction")) {
+          alert(`Audio playback failed: ${e.message}`);
+        }
+      }
+    }
+  };
+
+  const unlockAudio = async () => {
+    if (!audioRef.current) return;
+
+    try {
+      audioRef.current.src = SILENT_AUDIO_DATA_URI;
+      audioRef.current.muted = true;
+      audioRef.current.load();
+      await audioRef.current.play();
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.muted = false;
+      console.log("[ClientSessionPage] Audio unlocked successfully");
+    } catch (err) {
+      console.warn("[ClientSessionPage] Initial audio unlock failed:", err);
+    }
+  };
 
   // Sync ref with state
   useEffect(() => {
@@ -140,6 +184,13 @@ URL: ${url}`);
       console.warn("[ClientSessionPage] ❌ Socket disconnected");
     });
 
+    s.on("play_sound", async (data: { audioUrl: string }) => {
+      console.log("[ClientSessionPage] Sound event received:", data.audioUrl);
+      if (audioRef.current && audioEnabledRef.current) {
+        void playAudioWithRetry(data.audioUrl);
+      }
+    });
+
     return () => {
       s.disconnect();
     };
@@ -154,11 +205,9 @@ URL: ${url}`);
   const toggleAudio = () => {
     const nextState = !audioEnabled;
     console.log("[ClientSessionPage] User toggled audio to:", nextState);
-    if (nextState && audioRef.current) {
+    if (nextState) {
       console.log("[ClientSessionPage] Unlocking audio context...");
-      audioRef.current.play().catch((err) => {
-          console.warn("[ClientSessionPage] Initial unlock play failed (expected if silent):", err);
-      });
+      void unlockAudio();
     }
     setAudioEnabled(nextState);
   };
@@ -270,7 +319,7 @@ URL: ${url}`);
               {sessionData.status === 'LIVE' ? (
                 <div className="flex flex-col items-center animate-pulse">
                    <Activity size={48} className="text-red-500/50" />
-                   <p className="mt-4 text-sm font-medium">Stream is Active</p>
+                   <p className="mt-4 text-sm font-medium">Live Sedang Berjalan</p>
                    <p className="text-xs text-center max-w-xs">
                      Untuk workflow direct YouTube/TikTok, monitoring utama tetap dilakukan dari dashboard platform.
                    </p>
@@ -278,7 +327,7 @@ URL: ${url}`);
               ) : (
                 <div className="flex flex-col items-center">
                    <Radio size={48} />
-                   <p className="mt-4 text-sm font-medium">Stream is Offline</p>
+                   <p className="mt-4 text-sm font-medium">Live Belum Berjalan</p>
                 </div>
               )}
               <div className="absolute top-4 left-4 bg-slate-950/80 backdrop-blur px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest text-slate-400 border border-white/5">
@@ -297,15 +346,15 @@ URL: ${url}`);
            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-3xl">
               <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                  <Settings size={18} className="text-blue-400" />
-                 Session Configuration
+                 Ringkasan Sesi
                </h3>
                <div className="grid grid-cols-2 gap-y-4 text-sm">
                   <div>
-                     <label className="text-slate-500 block">AI Tone / Personality</label>
+                     <label className="text-slate-500 block">Gaya AI</label>
                      <span className="text-slate-200 capitalize font-medium">{sessionData.ai_tone}</span>
                   </div>
                   <div>
-                     <label className="text-slate-500 block">Source Content</label>
+                     <label className="text-slate-500 block">Video Utama</label>
                      <span className="text-slate-200 truncate block font-medium">{sessionData.video?.filename || 'N/A'}</span>
                   </div>
                   <div className="col-span-2">
@@ -313,12 +362,12 @@ URL: ${url}`);
                      <p className="text-slate-300 mt-1 text-xs leading-relaxed">
                        {sessionData.target_rtmp_url
                          ? `${sessionData.target_rtmp_url}${sessionData.stream_key ? " + stream key configured" : ""}`
-                         : "No external RTMP set. Session will fallback to internal MediaMTX relay."}
+                         : "Belum ada RTMP eksternal. Sesi akan memakai relay internal MediaMTX."}
                      </p>
                   </div>
                   <div className="col-span-2">
-                     <label className="text-slate-500 block">AI Context / Knowledge</label>
-                     <p className="text-slate-300 mt-1 italic text-xs leading-relaxed line-clamp-2">"{sessionData.context_text || 'No context'}"</p>
+                     <label className="text-slate-500 block">Konteks untuk AI</label>
+                     <p className="text-slate-300 mt-1 italic text-xs leading-relaxed line-clamp-2">"{sessionData.context_text || 'Belum ada konteks'}"</p>
                   </div>
                </div>
            </div>
@@ -415,13 +464,13 @@ URL: ${url}`);
            <div className="p-6 bg-slate-900/50 border border-slate-800 rounded-3xl flex-1 flex flex-col min-h-[400px]">
               <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                  <MessageSquare size={18} className="text-purple-400" />
-                 Recent Activity
+                 Aktivitas Terbaru
                </h3>
               <div className="space-y-4 flex-1 overflow-y-auto">
                  <>
                  {sessionData.chat_logs.length === 0 && (
                    <div className="h-40 flex items-center justify-center text-slate-600 italic text-center px-4">
-                      <p className="text-xs uppercase tracking-tighter">No chat activity recorded for this session yet.</p>
+                      <p className="text-xs uppercase tracking-tighter">Belum ada aktivitas chat untuk sesi ini.</p>
                    </div>
                  )}
                  {sessionData.chat_logs.length > 0 && (
@@ -438,7 +487,7 @@ URL: ${url}`);
               </div>
               <Link href={`/live/${sessionData.id}`} target="_blank" className="mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700">
                  <span className="flex items-center justify-center gap-2 w-full">
-                   Open Internal Preview
+                   Buka Preview Internal
                    <ExternalLink size={14} />
                  </span>
               </Link>

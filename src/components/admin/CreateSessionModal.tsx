@@ -116,8 +116,8 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
               <Radio size={20} />
             </div>
             <div>
-              <h3 className="text-white font-bold text-lg">New Live Session</h3>
-              <p className="text-slate-500 text-xs">Configure your AI livestream</p>
+              <h3 className="text-white font-bold text-lg">Buat Sesi Live</h3>
+              <p className="text-slate-500 text-xs">Siapkan live Anda dalam beberapa langkah</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-all">
@@ -129,29 +129,29 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
           {/* Section 1: Basic Info */}
           <div className="space-y-4">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Basic Configuration</h4>
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Info Dasar</h4>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-400">Session Title *</label>
+              <label className="text-sm font-medium text-slate-400">Judul Sesi *</label>
               <input
                 type="text"
                 required
                 value={formData.title}
                 onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
-                placeholder="e.g., Gaming Night with AI"
+                placeholder="Contoh: Live Musik Santai Malam Ini"
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-400">Loop Video *</label>
+              <label className="text-sm font-medium text-slate-400">Video Utama *</label>
               {fetchingVideos ? (
                 <div className="flex items-center gap-2 text-slate-500 text-sm px-1 py-1">
-                  <Loader2 size={16} className="animate-spin" /> Loading videos...
+                  <Loader2 size={16} className="animate-spin" /> Memuat video...
                 </div>
               ) : videos.length === 0 ? (
                 <div className="flex items-center gap-2 text-orange-400 text-sm bg-orange-500/10 border border-orange-500/20 rounded-2xl px-5 py-3">
-                  <FileVideo size={16} /> No videos found. Please upload a video first.
+                  <FileVideo size={16} /> Belum ada video. Tambahkan video lebih dulu.
                 </div>
               ) : (
                 <select
@@ -160,7 +160,7 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
                   onChange={e => setFormData(p => ({ ...p, video_id: e.target.value }))}
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-cyan-500/50 transition-all appearance-none cursor-pointer"
                 >
-                  <option value="">-- Select a video --</option>
+                  <option value="">-- Pilih video --</option>
                   <>
                     {videos.map(v => (
                       <option key={v.id} value={v.id}>{v.filename}</option>
@@ -171,7 +171,7 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-400">AI Personality Tone</label>
+              <label className="text-sm font-medium text-slate-400">Gaya AI</label>
               <div className="grid grid-cols-2 gap-2">
                 {AI_TONES.map(tone => (
                   <button
@@ -194,7 +194,7 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
 
           {/* Section 2: Platform Destination */}
           <div className="space-y-4">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Platform Destination (Recommended)</h4>
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Tujuan Live</h4>
 
             <div className="flex flex-wrap gap-2 px-1">
               <button
@@ -202,50 +202,50 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
                 onClick={() => applyPlatformPreset("youtube")}
                 className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red-300 transition hover:bg-red-500/20"
               >
-                Use YouTube RTMP
+                YouTube
               </button>
               <button
                 type="button"
                 onClick={() => applyPlatformPreset("tiktok")}
                 className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300 transition hover:bg-cyan-400/20"
               >
-                Use TikTok RTMP
+                TikTok
               </button>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-400">Target RTMP URL</label>
+                <label className="text-sm font-medium text-slate-400">Alamat RTMP</label>
                 <input
                   type="text"
                   value={formData.target_rtmp_url}
                   onChange={e => setFormData(p => ({ ...p, target_rtmp_url: e.target.value }))}
-                  placeholder="e.g., rtmp://a.rtmp.youtube.com/live2"
+                  placeholder="Contoh: rtmp://a.rtmp.youtube.com/live2"
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-cyan-500/50 transition-all font-mono text-xs placeholder:text-slate-600"
                 />
                 <p className="text-[10px] text-slate-500 px-1">
-                  Kosongkan hanya jika Anda memang ingin fallback ke MediaMTX internal untuk preview atau relay.
+                  Kosongkan hanya jika Anda ingin memakai preview atau relay internal.
                 </p>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-400">Stream Key</label>
+                <label className="text-sm font-medium text-slate-400">Kunci Stream</label>
                 <input
                   type="password"
                   value={formData.stream_key}
                   onChange={e => setFormData(p => ({ ...p, stream_key: e.target.value }))}
-                  placeholder="Paste your Stream Key here"
+                  placeholder="Tempel stream key di sini"
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-cyan-500/50 transition-all font-mono text-xs placeholder:text-slate-600"
                 />
               </div>
             </div>
 
             <div className="space-y-2 px-1">
-              <label className="text-[11px] font-medium text-red-400/80">YouTube Chat Monitoring Video ID</label>
+              <label className="text-[11px] font-medium text-red-400/80">Video ID YouTube untuk Monitoring Chat</label>
               <input
                 type="text"
                 value={formData.youtube_video_id}
                 onChange={e => setFormData(p => ({ ...p, youtube_video_id: e.target.value }))}
-                placeholder="Override Video ID (Optional)"
+                placeholder="Opsional: isi manual jika perlu"
                 className="w-full bg-slate-950/50 border border-slate-800/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500/30 transition-all font-mono text-xs placeholder:text-slate-600"
               />
               <p className="text-[9px] text-slate-500 leading-relaxed">
@@ -258,12 +258,12 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
 
           {/* Section 3: Context */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-400">Stream Context (AI Knowledge)</label>
+            <label className="text-sm font-medium text-slate-400">Konteks Live untuk AI</label>
             <textarea
               rows={2}
               value={formData.context_text}
               onChange={e => setFormData(p => ({ ...p, context_text: e.target.value }))}
-              placeholder="Tell the AI what this stream is about..."
+              placeholder="Ceritakan singkat live ini tentang apa..."
               className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-cyan-500/50 transition-all text-sm resize-none placeholder:text-slate-600"
             />
           </div>
@@ -274,7 +274,7 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
           {/* Footer Actions */}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-5 py-3 rounded-2xl border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition-all font-medium">
-              Cancel
+              Batal
             </button>
             <button
               type="submit"
@@ -282,7 +282,7 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
               className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-semibold transition-all shadow-lg shadow-purple-600/20 disabled:opacity-60 disabled:cursor-not-allowed active:scale-95"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-              {loading ? "Creating..." : "Create Session"}
+              {loading ? "Membuat..." : "Buat Sesi"}
             </button>
           </div>
         </form>

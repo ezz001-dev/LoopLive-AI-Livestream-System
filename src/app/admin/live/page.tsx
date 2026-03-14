@@ -16,8 +16,8 @@ export default async function LiveSessionsPage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Live Sessions</h2>
-          <p className="text-slate-400 mt-1">Configure direct YouTube/TikTok sessions, scheduling, and AI orchestration.</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Sesi Live</h2>
+          <p className="text-slate-400 mt-1">Buat, jadwalkan, dan jalankan live ke YouTube atau TikTok dari satu tempat.</p>
         </div>
         <LiveSessionsHeader />
       </div>
@@ -70,7 +70,7 @@ export default async function LiveSessionsPage() {
 
         {sessions.length === 0 && (
           <div className="py-20 text-center text-slate-500 italic">
-            No live sessions configured.
+            Belum ada sesi live yang dibuat.
           </div>
         )}
       </div>

@@ -14,3 +14,7 @@ public/videos/
 *.mp4
 *.mkv
 *.mov
+
+public/audio/
+*.mp3
+*.wav
