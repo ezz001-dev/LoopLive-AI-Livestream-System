@@ -13,7 +13,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model tenants {
+  id         String   @id @default(uuid())
+  name       String
+  slug       String   @unique
+  status     String   @default("active")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
+  users         tenant_users[]
+  videos        videos[]
+  live_sessions live_sessions[]
+  sound_events  sound_events[]
+}
+
+model users {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  display_name  String?
+  status        String   @default("active")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  tenants tenant_users[]
+}
+
+model tenant_users {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  user_id    String
+  role       String   @default("owner")
+  created_at DateTime @default(now())
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, user_id])
+}
 
 model admin_users {
   id         String   @id @default(uuid())
@@ -25,9 +62,11 @@ model admin_users {
 
 model live_sessions {
   id                  String          @id @default(uuid())
+  tenant_id           String?
   title               String
   video_id            String
   video               videos          @relation(fields: [video_id], references: [id])
+  tenant              tenants?        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   context_text        String?
   ai_tone             String          @default("friendly")
   status              String          @default("IDLE") // IDLE, LIVE, STOPPED
@@ -63,12 +102,16 @@ model live_sessions {
   updated_at          DateTime        @updatedAt
   chat_logs           chat_logs[]
   ai_reply_logs       ai_reply_logs[]
-  schedules            session_schedules[]
+  schedules           session_schedules[]
+
+  @@index([tenant_id, status])
+  @@index([tenant_id, created_at])
 }
 
 
 model videos {
   id               String          @id @default(uuid())
+  tenant_id        String?
   filename         String
   file_path        String
   file_type        String
@@ -76,9 +119,12 @@ model videos {
   storage_provider String          @default("local")
   storage_key      String?
   public_url       String?
+  tenant           tenants?        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   created_at       DateTime        @default(now())
   updated_at       DateTime        @updatedAt
   sessions         live_sessions[]
+
+  @@index([tenant_id, created_at])
 }
 
 
@@ -164,10 +210,14 @@ model system_settings {
 
 model sound_events {
   id         String   @id @default(uuid())
+  tenant_id  String?
   event_type String   // "keyword" or "join"
   keyword    String?  // The keyword to trigger the sound (e.g. "hai")
   audio_url  String   // Path to the audio file in public/sounds/
   active     Boolean  @default(true)
+  tenant     tenants? @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+
+  @@index([tenant_id, active])
 }
