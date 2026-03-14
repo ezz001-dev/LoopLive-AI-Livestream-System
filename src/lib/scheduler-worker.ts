@@ -302,15 +302,3 @@ process.on('SIGTERM', () => {
 });
 
 startScheduler();
-
-process.on('SIGINT', () => {
-    console.log("[Scheduler] Shutting down...");
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    console.log("[Scheduler] Shutting down...");
-    process.exit(0);
-});
-
-startScheduler();
