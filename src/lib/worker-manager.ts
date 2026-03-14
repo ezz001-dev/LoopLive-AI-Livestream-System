@@ -1,12 +1,58 @@
 import { ChildProcess, spawn } from "child_process";
 import fs from "fs";
+import { prisma } from "@/lib/prisma";
+
+type ManagedSession = {
+  liveId: string;
+  videoInput: string;
+  streamUrl: string;
+  manualStop: boolean;
+  restartAttempts: number;
+  restartTimer: NodeJS.Timeout | null;
+  process: ChildProcess | null;
+};
+
+const MAX_RESTART_ATTEMPTS = 10;
+const BASE_RESTART_DELAY_MS = 5000;
+const MAX_RESTART_DELAY_MS = 60000;
+
+function getStringEnv(name: string, fallback: string) {
+  const value = process.env[name]?.trim();
+  return value ? value : fallback;
+}
+
+function getNumberEnv(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function getFfmpegConfig() {
+  return {
+    videoCodec: getStringEnv("FFMPEG_VIDEO_CODEC", "libx264"),
+    preset: getStringEnv("FFMPEG_PRESET", "veryfast"),
+    tune: getStringEnv("FFMPEG_TUNE", "zerolatency"),
+    pixelFormat: getStringEnv("FFMPEG_PIXEL_FORMAT", "yuv420p"),
+    fps: getNumberEnv("FFMPEG_FPS", 30),
+    gop: getNumberEnv("FFMPEG_GOP", 60),
+    videoBitrate: getStringEnv("FFMPEG_VIDEO_BITRATE", "2500k"),
+    maxrate: getStringEnv("FFMPEG_MAXRATE", "2500k"),
+    bufsize: getStringEnv("FFMPEG_BUFSIZE", "5000k"),
+    audioCodec: getStringEnv("FFMPEG_AUDIO_CODEC", "aac"),
+    audioRate: getNumberEnv("FFMPEG_AUDIO_RATE", 44100),
+    audioChannels: getNumberEnv("FFMPEG_AUDIO_CHANNELS", 2),
+    audioBitrate: getStringEnv("FFMPEG_AUDIO_BITRATE", "128k"),
+    maxRestartAttempts: getNumberEnv("FFMPEG_MAX_RESTART_ATTEMPTS", MAX_RESTART_ATTEMPTS),
+    baseRestartDelayMs: getNumberEnv("FFMPEG_RESTART_DELAY_MS", BASE_RESTART_DELAY_MS),
+    maxRestartDelayMs: getNumberEnv("FFMPEG_MAX_RESTART_DELAY_MS", MAX_RESTART_DELAY_MS),
+  };
+}
 
 /**
- * WorkerManager handles FFmpeg processes for livestock loop streaming.
+ * WorkerManager handles FFmpeg processes for loop streaming.
  * It is implemented as a singleton to maintain process state across API requests.
  */
 class WorkerManager {
-  private processes: Map<string, ChildProcess> = new Map();
+  private sessions: Map<string, ManagedSession> = new Map();
 
   constructor() {
     console.log("[WorkerManager] Initialized");
@@ -19,7 +65,8 @@ class WorkerManager {
    * @param streamUrl The RTMP ingestion URL for a platform destination or internal relay.
    */
   public start(liveId: string, videoInput: string, streamUrl: string) {
-    if (this.processes.has(liveId)) {
+    const existing = this.sessions.get(liveId);
+    if (existing?.process) {
       console.warn(`[WorkerManager] Session ${liveId} is already running.`);
       return;
     }
@@ -29,7 +76,33 @@ class WorkerManager {
       throw new Error(`Video file not found: ${videoInput}`);
     }
 
-    console.log(`[WorkerManager] Starting stream for ${liveId} using ${videoInput}`);
+    const session: ManagedSession = existing ?? {
+      liveId,
+      videoInput,
+      streamUrl,
+      manualStop: false,
+      restartAttempts: 0,
+      restartTimer: null,
+      process: null,
+    };
+
+    session.videoInput = videoInput;
+    session.streamUrl = streamUrl;
+    session.manualStop = false;
+    if (session.restartTimer) {
+      clearTimeout(session.restartTimer);
+      session.restartTimer = null;
+    }
+
+    this.sessions.set(liveId, session);
+    this.spawnProcess(session);
+  }
+
+  private spawnProcess(session: ManagedSession) {
+    const isRemoteInput = /^https?:\/\//i.test(session.videoInput);
+    const ffmpegConfig = getFfmpegConfig();
+
+    console.log(`[WorkerManager] Starting stream for ${session.liveId} using ${session.videoInput}`);
 
     const inputArgs = isRemoteInput
       ? [
@@ -44,45 +117,131 @@ class WorkerManager {
         ]
       : [];
 
-    /**
-     * FFmpeg Command Flags:
-     * -re: Read input at native frame rate.
-     * -stream_loop -1: Infinite loop.
-     * -i: Input file.
-     * -c:v libx264: Video codec.
-     * -preset veryfast: Encoding speed.
-     * -c:a aac: Audio codec.
-     * -f flv: Output format for RTMP.
-     */
-    const ffmpeg = spawn("ffmpeg", [
+    const ffmpegArgs = [
       ...inputArgs,
       "-re",
       "-stream_loop", "-1",
-      "-i", videoInput,
-      "-c:v", "libx264",
-      "-preset", "veryfast",
-      "-tune", "zerolatency",
-      "-c:a", "aac",
-      "-ar", "44100",
-      "-b:a", "128k",
+      "-i", session.videoInput,
+      "-map", "0:v:0",
+      "-map", "0:a:0?",
+      "-c:v", ffmpegConfig.videoCodec,
+      "-preset", ffmpegConfig.preset,
+      "-tune", ffmpegConfig.tune,
+      "-pix_fmt", ffmpegConfig.pixelFormat,
+      "-r", String(ffmpegConfig.fps),
+      "-g", String(ffmpegConfig.gop),
+      "-keyint_min", String(ffmpegConfig.gop),
+      "-sc_threshold", "0",
+      "-b:v", ffmpegConfig.videoBitrate,
+      "-maxrate", ffmpegConfig.maxrate,
+      "-bufsize", ffmpegConfig.bufsize,
+      "-c:a", ffmpegConfig.audioCodec,
+      "-ar", String(ffmpegConfig.audioRate),
+      "-ac", String(ffmpegConfig.audioChannels),
+      "-b:a", ffmpegConfig.audioBitrate,
       "-f", "flv",
-      streamUrl
-    ]);
+      session.streamUrl,
+    ];
+
+    const ffmpeg = spawn("ffmpeg", ffmpegArgs, {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+
+    session.process = ffmpeg;
 
     ffmpeg.stderr.on("data", (data) => {
       const message = data.toString().trim();
       if (message) {
-        console.error(`[FFmpeg ${liveId}] ${message}`);
+        console.error(`[FFmpeg ${session.liveId}] ${message}`);
       }
     });
 
-
-    ffmpeg.on("close", (code) => {
-      console.log(`[WorkerManager] FFmpeg process for ${liveId} exited with code ${code}`);
-      this.processes.delete(liveId);
+    ffmpeg.on("error", (error) => {
+      console.error(`[WorkerManager] FFmpeg process error for ${session.liveId}:`, error);
     });
 
-    this.processes.set(liveId, ffmpeg);
+    ffmpeg.on("close", (code, signal) => {
+      void this.handleProcessClose(session, code, signal);
+    });
+  }
+
+  private async handleProcessClose(
+    session: ManagedSession,
+    code: number | null,
+    signal: NodeJS.Signals | null
+  ) {
+    const ffmpegConfig = getFfmpegConfig();
+
+    console.log(
+      `[WorkerManager] FFmpeg process for ${session.liveId} exited with code ${code} and signal ${signal}`
+    );
+
+    session.process = null;
+
+    if (session.manualStop) {
+      await this.updateSessionStatus(session.liveId, "STOPPED");
+      this.cleanupSession(session.liveId);
+      return;
+    }
+
+    if (session.restartAttempts >= ffmpegConfig.maxRestartAttempts) {
+      console.error(
+        `[WorkerManager] Session ${session.liveId} reached max restart attempts (${ffmpegConfig.maxRestartAttempts}).`
+      );
+      await this.updateSessionStatus(session.liveId, "ERROR");
+      this.cleanupSession(session.liveId);
+      return;
+    }
+
+    session.restartAttempts += 1;
+    const delay = Math.min(
+      ffmpegConfig.baseRestartDelayMs * session.restartAttempts,
+      ffmpegConfig.maxRestartDelayMs
+    );
+
+    console.warn(
+      `[WorkerManager] Scheduling restart ${session.restartAttempts}/${ffmpegConfig.maxRestartAttempts} for ${session.liveId} in ${delay}ms`
+    );
+
+    session.restartTimer = setTimeout(() => {
+      session.restartTimer = null;
+      if (session.manualStop) {
+        void this.updateSessionStatus(session.liveId, "STOPPED");
+        this.cleanupSession(session.liveId);
+        return;
+      }
+
+      this.spawnProcess(session);
+    }, delay);
+  }
+
+  private async updateSessionStatus(liveId: string, status: "STOPPED" | "ERROR") {
+    try {
+      await prisma.live_sessions.update({
+        where: { id: liveId },
+        data: {
+          status,
+          ...(status === "STOPPED" ? { viewer_count: 0 } : {}),
+        },
+      });
+    } catch (error) {
+      console.log(
+        `[WorkerManager] Failed to update session ${liveId} status to ${status}:`,
+        error
+      );
+    }
+  }
+
+  private cleanupSession(liveId: string) {
+    const session = this.sessions.get(liveId);
+    if (!session) return;
+
+    if (session.restartTimer) {
+      clearTimeout(session.restartTimer);
+      session.restartTimer = null;
+    }
+
+    this.sessions.delete(liveId);
   }
 
   /**
@@ -90,21 +249,34 @@ class WorkerManager {
    * @param liveId The unique ID of the live session.
    */
   public stop(liveId: string) {
-    const process = this.processes.get(liveId);
-    if (process) {
-      console.log(`[WorkerManager] Killing process for ${liveId}`);
-      process.kill("SIGTERM"); // Graceful shutdown
-      this.processes.delete(liveId);
-      return true;
+    const session = this.sessions.get(liveId);
+    if (!session) {
+      return false;
     }
-    return false;
+
+    session.manualStop = true;
+    session.restartAttempts = 0;
+
+    if (session.restartTimer) {
+      clearTimeout(session.restartTimer);
+      session.restartTimer = null;
+    }
+
+    if (session.process) {
+      console.log(`[WorkerManager] Killing process for ${liveId}`);
+      session.process.kill("SIGTERM");
+    } else {
+      this.cleanupSession(liveId);
+    }
+
+    return true;
   }
 
   /**
-   * Checks if a session is currently streaming.
+   * Checks if a session is currently streaming or waiting for restart.
    */
   public isRunning(liveId: string): boolean {
-    return this.processes.has(liveId);
+    return this.sessions.has(liveId);
   }
 }
 
