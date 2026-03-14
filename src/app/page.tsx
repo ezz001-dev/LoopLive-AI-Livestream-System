@@ -108,8 +108,10 @@ export default function Home() {
                 href="/admin"
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-xl shadow-sky-500/20 transition hover:bg-sky-400"
               >
-                Masuk ke Dashboard
-                <ArrowRight size={16} />
+                <span className="inline-flex items-center gap-2">
+                  <span>Masuk ke Dashboard</span>
+                  <ArrowRight size={16} />
+                </span>
               </Link>
               <Link
                 href="/login"
@@ -253,45 +255,51 @@ export default function Home() {
                   href="/admin/videos"
                   className="group rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 transition hover:border-sky-400/30 hover:bg-white/[0.1]"
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Asset</p>
-                  <h3 className="mt-3 text-lg font-bold text-white">Upload Video</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Tambahkan video loop baru ke library dan siapkan source stream.
-                  </p>
-                  <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
-                    Open Videos
-                    <ArrowRight size={15} className="transition group-hover:translate-x-1" />
-                  </div>
+                  <span className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Asset</span>
+                    <span className="mt-3 block text-lg font-bold text-white">Upload Video</span>
+                    <span className="mt-2 block text-sm leading-6 text-slate-400">
+                      Tambahkan video loop baru ke library dan siapkan source stream.
+                    </span>
+                    <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
+                      <span>Open Videos</span>
+                      <ArrowRight size={15} className="transition group-hover:translate-x-1" />
+                    </span>
+                  </span>
                 </Link>
 
                 <Link
                   href="/admin/live"
                   className="group rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 transition hover:border-sky-400/30 hover:bg-white/[0.1]"
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Session</p>
-                  <h3 className="mt-3 text-lg font-bold text-white">Create Session</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Susun sesi live baru, pilih video, RTMP target, dan persona AI.
-                  </p>
-                  <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
-                    Open Live Sessions
-                    <ArrowRight size={15} className="transition group-hover:translate-x-1" />
-                  </div>
+                  <span className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Session</span>
+                    <span className="mt-3 block text-lg font-bold text-white">Create Session</span>
+                    <span className="mt-2 block text-sm leading-6 text-slate-400">
+                      Susun sesi live baru, pilih video, RTMP target, dan persona AI.
+                    </span>
+                    <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
+                      <span>Open Live Sessions</span>
+                      <ArrowRight size={15} className="transition group-hover:translate-x-1" />
+                    </span>
+                  </span>
                 </Link>
 
                 <Link
                   href="/admin/settings"
                   className="group rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-5 transition hover:border-sky-400/30 hover:bg-white/[0.1]"
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Config</p>
-                  <h3 className="mt-3 text-lg font-bold text-white">Settings</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">
-                    Atur provider AI, cookie YouTube, Redis, R2, dan parameter sistem.
-                  </p>
-                  <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
-                    Open Settings
-                    <ArrowRight size={15} className="transition group-hover:translate-x-1" />
-                  </div>
+                  <span className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Config</span>
+                    <span className="mt-3 block text-lg font-bold text-white">Settings</span>
+                    <span className="mt-2 block text-sm leading-6 text-slate-400">
+                      Atur provider AI, cookie YouTube, Redis, R2, dan parameter sistem.
+                    </span>
+                    <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-300">
+                      <span>Open Settings</span>
+                      <ArrowRight size={15} className="transition group-hover:translate-x-1" />
+                    </span>
+                  </span>
                 </Link>
               </div>
             </div>
