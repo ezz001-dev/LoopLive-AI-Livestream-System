@@ -1,20 +1,42 @@
 import { ChildProcess, spawn } from "child_process";
 import fs from "fs";
 import { prisma } from "@/lib/prisma";
+import { AudioEvent, shiftAudioEvent } from "@/lib/audio-event-manager";
+import path from "path";
+
+type ActiveAudioBatch = {
+  id: string;
+  mode: "single" | "concat";
+  inputPath: string;
+  sourceEvents: AudioEvent[];
+  durationMs: number;
+  manifestPath: string | null;
+};
 
 type ManagedSession = {
   liveId: string;
   videoInput: string;
   streamUrl: string;
+  sourceHasAudio: boolean | null;
   manualStop: boolean;
+  intentionalRespawn: boolean;
   restartAttempts: number;
   restartTimer: NodeJS.Timeout | null;
+  audioPollTimer: NodeJS.Timeout | null;
+  audioActivationTimer: NodeJS.Timeout | null;
+  currentAudioBatch: ActiveAudioBatch | null;
+  currentAudioEventTimer: NodeJS.Timeout | null;
   process: ChildProcess | null;
 };
 
 const MAX_RESTART_ATTEMPTS = 10;
 const BASE_RESTART_DELAY_MS = 5000;
 const MAX_RESTART_DELAY_MS = 60000;
+const AUDIO_QUEUE_POLL_MS = 1500;
+const AUDIO_EVENT_FALLBACK_DURATION_MS = 3000;
+const AUDIO_BATCH_MAX_ITEMS = 5;
+const AUDIO_BATCH_ACCUMULATION_MS = 400;
+const AUDIO_BATCH_DIR = path.join(process.cwd(), "logs", "audio-batches");
 
 function getStringEnv(name: string, fallback: string) {
   const value = process.env[name]?.trim();
@@ -44,7 +66,156 @@ function getFfmpegConfig() {
     maxRestartAttempts: getNumberEnv("FFMPEG_MAX_RESTART_ATTEMPTS", MAX_RESTART_ATTEMPTS),
     baseRestartDelayMs: getNumberEnv("FFMPEG_RESTART_DELAY_MS", BASE_RESTART_DELAY_MS),
     maxRestartDelayMs: getNumberEnv("FFMPEG_MAX_RESTART_DELAY_MS", MAX_RESTART_DELAY_MS),
+    duckingEnabled: getStringEnv("STREAM_AUDIO_DUCKING_ENABLED", "true") === "true",
+    duckingLevel: getStringEnv("STREAM_AUDIO_DUCKING_LEVEL", "0.35"),
+    eventGain: getStringEnv("STREAM_AUDIO_EVENT_GAIN", "1.0"),
+    mainGain: getStringEnv("STREAM_AUDIO_MAIN_GAIN", "1.0"),
+    eventFadeInSeconds: getStringEnv("STREAM_AUDIO_EVENT_FADE_IN_SECONDS", "0.12"),
+    eventFadeOutSeconds: getStringEnv("STREAM_AUDIO_EVENT_FADE_OUT_SECONDS", "0.18"),
   };
+}
+
+function resolveAudioPath(audioPath: string) {
+  if (audioPath.startsWith("/")) {
+    return path.join(process.cwd(), "public", audioPath.replace(/^\/+/, ""));
+  }
+
+  return audioPath;
+}
+
+async function getAudioDurationMs(audioPath: string) {
+  const resolvedAudioPath = resolveAudioPath(audioPath);
+  if (!fs.existsSync(resolvedAudioPath)) {
+    console.warn(`[WorkerManager][AudioQueue] Audio file not found for duration probe: ${resolvedAudioPath}`);
+    return AUDIO_EVENT_FALLBACK_DURATION_MS;
+  }
+
+  return new Promise<number>((resolve) => {
+    const ffprobe = spawn("ffprobe", [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      resolvedAudioPath,
+    ]);
+
+    let output = "";
+
+    ffprobe.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    ffprobe.on("error", () => {
+      resolve(AUDIO_EVENT_FALLBACK_DURATION_MS);
+    });
+
+    ffprobe.on("close", () => {
+      const durationSeconds = Number(output.trim());
+      if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+        resolve(AUDIO_EVENT_FALLBACK_DURATION_MS);
+        return;
+      }
+
+      resolve(Math.ceil(durationSeconds * 1000));
+    });
+  });
+}
+
+function ensureAudioBatchDir() {
+  if (!fs.existsSync(AUDIO_BATCH_DIR)) {
+    fs.mkdirSync(AUDIO_BATCH_DIR, { recursive: true });
+  }
+}
+
+function escapeConcatPath(filepath: string) {
+  return filepath.replace(/'/g, "'\\''");
+}
+
+async function buildAudioBatch(liveId: string, firstEvent: AudioEvent) {
+  const events: AudioEvent[] = [firstEvent];
+
+  while (events.length < AUDIO_BATCH_MAX_ITEMS) {
+    const next = await shiftAudioEvent(liveId);
+    if (!next) break;
+    events.push(next);
+  }
+
+  const durations = await Promise.all(events.map((event) => getAudioDurationMs(event.audioPath)));
+  const durationMs = durations.reduce((total, value) => total + value, 0);
+
+  if (events.length === 1) {
+    return {
+      id: firstEvent.id,
+      mode: "single" as const,
+      inputPath: resolveAudioPath(firstEvent.audioPath),
+      sourceEvents: events,
+      durationMs,
+      manifestPath: null,
+    };
+  }
+
+  ensureAudioBatchDir();
+  const manifestPath = path.join(AUDIO_BATCH_DIR, `${liveId}-${Date.now()}-${firstEvent.id}.txt`);
+  const manifestContents = events
+    .map((event) => `file '${escapeConcatPath(resolveAudioPath(event.audioPath))}'`)
+    .join("\n");
+
+  await fs.promises.writeFile(manifestPath, manifestContents, "utf8");
+
+  return {
+    id: firstEvent.id,
+    mode: "concat" as const,
+    inputPath: manifestPath,
+    sourceEvents: events,
+    durationMs,
+    manifestPath,
+  };
+}
+
+async function cleanupAudioBatchFiles(batch: ActiveAudioBatch | null) {
+  if (!batch?.manifestPath) return;
+
+  try {
+    await fs.promises.unlink(batch.manifestPath);
+  } catch (error) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code !== "ENOENT") {
+      console.warn(`[WorkerManager][AudioQueue] Failed to remove audio batch manifest ${batch.manifestPath}:`, error);
+    }
+  }
+}
+
+function getEventFadeOutStartSeconds(durationMs: number, fadeOutSeconds: number) {
+  const totalSeconds = durationMs / 1000;
+  const safeFadeOut = Math.max(0, fadeOutSeconds);
+  return Math.max(0, totalSeconds - safeFadeOut);
+}
+
+async function probeInputHasAudio(input: string) {
+  return new Promise<boolean>((resolve) => {
+    const ffprobe = spawn("ffprobe", [
+      "-v",
+      "error",
+      "-select_streams",
+      "a:0",
+      "-show_entries",
+      "stream=codec_type",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      input,
+    ]);
+
+    let output = "";
+
+    ffprobe.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    ffprobe.on("error", () => resolve(false));
+    ffprobe.on("close", () => resolve(output.trim().includes("audio")));
+  });
 }
 
 /**
@@ -80,29 +251,119 @@ class WorkerManager {
       liveId,
       videoInput,
       streamUrl,
+      sourceHasAudio: null,
       manualStop: false,
+      intentionalRespawn: false,
       restartAttempts: 0,
       restartTimer: null,
+      audioPollTimer: null,
+      audioActivationTimer: null,
+      currentAudioBatch: null,
+      currentAudioEventTimer: null,
       process: null,
     };
 
     session.videoInput = videoInput;
     session.streamUrl = streamUrl;
+    session.sourceHasAudio = null;
     session.manualStop = false;
+    session.intentionalRespawn = false;
     if (session.restartTimer) {
       clearTimeout(session.restartTimer);
       session.restartTimer = null;
     }
 
     this.sessions.set(liveId, session);
+    this.startAudioPolling(session);
     this.spawnProcess(session);
   }
 
-  private spawnProcess(session: ManagedSession) {
+  private startAudioPolling(session: ManagedSession) {
+    if (session.audioPollTimer) return;
+
+    session.audioPollTimer = setInterval(() => {
+      void this.processNextAudioEvent(session);
+    }, AUDIO_QUEUE_POLL_MS);
+
+    void this.processNextAudioEvent(session);
+  }
+
+  private async processNextAudioEvent(session: ManagedSession) {
+    if (
+      session.manualStop ||
+      session.currentAudioBatch ||
+      session.currentAudioEventTimer ||
+      session.audioActivationTimer
+    ) {
+      return;
+    }
+
+    const nextEvent = await shiftAudioEvent(session.liveId);
+    if (!nextEvent) {
+      return;
+    }
+
+    session.audioActivationTimer = setTimeout(() => {
+      void this.activateAudioBatch(session, nextEvent);
+    }, AUDIO_BATCH_ACCUMULATION_MS);
+  }
+
+  private async activateAudioBatch(session: ManagedSession, firstEvent: AudioEvent) {
+    session.audioActivationTimer = null;
+
+    if (session.manualStop || session.currentAudioBatch) {
+      return;
+    }
+
+    const batch = await buildAudioBatch(session.liveId, firstEvent);
+    session.currentAudioBatch = batch;
+
+    const batchTypes = batch.sourceEvents.map((event) => event.type).join(", ");
+    console.log(
+      `[WorkerManager][AudioQueue] Activated audio batch for ${session.liveId}: ${batch.sourceEvents.length} event(s), types=[${batchTypes}], duration≈${batch.durationMs}ms`
+    );
+
+    this.respawnForAudioTransition(session, `audio-batch-started:${batch.sourceEvents.length}`);
+
+    session.currentAudioEventTimer = setTimeout(() => {
+      void this.finishAudioBatch(session);
+    }, batch.durationMs);
+  }
+
+  private async finishAudioBatch(session: ManagedSession) {
+    const finishedBatch = session.currentAudioBatch;
+
+    if (finishedBatch) {
+      console.log(
+        `[WorkerManager][AudioQueue] Finished audio batch for ${session.liveId}: ${finishedBatch.sourceEvents.length} event(s)`
+      );
+    }
+
+    session.currentAudioBatch = null;
+    session.currentAudioEventTimer = null;
+
+    await cleanupAudioBatchFiles(finishedBatch);
+
+    this.respawnForAudioTransition(session, "audio-batch-finished");
+  }
+
+  private async spawnProcess(session: ManagedSession) {
     const isRemoteInput = /^https?:\/\//i.test(session.videoInput);
     const ffmpegConfig = getFfmpegConfig();
+    if (session.sourceHasAudio === null) {
+      session.sourceHasAudio = await probeInputHasAudio(session.videoInput);
+      console.log(
+        `[WorkerManager] Source audio probe for ${session.liveId}: ${session.sourceHasAudio ? "audio track found" : "no audio track"}`
+      );
+    }
 
-    console.log(`[WorkerManager] Starting stream for ${session.liveId} using ${session.videoInput}`);
+    console.log(
+      `[WorkerManager] Starting stream for ${session.liveId} using ${session.videoInput}${
+        session.currentAudioBatch
+          ? ` + audio batch ${session.currentAudioBatch.inputPath} (${session.currentAudioBatch.sourceEvents.length} event)`
+          : ""
+      }`
+    );
 
     const inputArgs = isRemoteInput
       ? [
@@ -122,8 +383,17 @@ class WorkerManager {
       "-re",
       "-stream_loop", "-1",
       "-i", session.videoInput,
-      "-map", "0:v:0",
-      "-map", "0:a:0?",
+    ];
+
+    if (session.currentAudioBatch) {
+      if (session.currentAudioBatch.mode === "concat") {
+        ffmpegArgs.push("-f", "concat", "-safe", "0", "-i", session.currentAudioBatch.inputPath);
+      } else {
+        ffmpegArgs.push("-i", session.currentAudioBatch.inputPath);
+      }
+    }
+
+    const baseEncodingArgs = [
       "-c:v", ffmpegConfig.videoCodec,
       "-preset", ffmpegConfig.preset,
       "-tune", ffmpegConfig.tune,
@@ -142,6 +412,43 @@ class WorkerManager {
       "-f", "flv",
       session.streamUrl,
     ];
+
+    if (session.currentAudioBatch) {
+      const fadeOutStart = getEventFadeOutStartSeconds(
+        session.currentAudioBatch.durationMs,
+        Number(ffmpegConfig.eventFadeOutSeconds)
+      );
+      const eventFilter = [
+        `volume=${ffmpegConfig.eventGain}`,
+        `afade=t=in:st=0:d=${ffmpegConfig.eventFadeInSeconds}`,
+        `afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${ffmpegConfig.eventFadeOutSeconds}`,
+      ].join(",");
+
+      const duckingFilter = ffmpegConfig.duckingEnabled
+        ? `[main_pre][event_sc]sidechaincompress=threshold=0.02:ratio=10:attack=25:release=650:makeup=1[ducked_sc];[ducked_sc]volume=${ffmpegConfig.duckingLevel}[ducked]`
+        : `[main_pre]volume=${ffmpegConfig.mainGain}[ducked]`;
+
+      const filterComplex = session.sourceHasAudio
+        ? `[0:a:0]volume=${ffmpegConfig.mainGain}[main_pre];[1:a]${eventFilter}[event_pre];[event_pre]asplit=2[event_mix][event_sc];${duckingFilter};[ducked][event_mix]amix=inputs=2:duration=first:dropout_transition=0.20:normalize=0[aout]`
+        : `anullsrc=channel_layout=stereo:sample_rate=${ffmpegConfig.audioRate}[base];[base]volume=${ffmpegConfig.mainGain}[main_pre];[1:a]${eventFilter}[event_pre];[event_pre]asplit=2[event_mix][event_sc];${duckingFilter};[ducked][event_mix]amix=inputs=2:duration=first:dropout_transition=0.20:normalize=0[aout]`;
+
+      ffmpegArgs.push(
+        "-filter_complex",
+        filterComplex,
+        "-map",
+        "0:v:0",
+        "-map",
+        "[aout]",
+        ...baseEncodingArgs
+      );
+    } else {
+      ffmpegArgs.push(
+        "-map",
+        "0:v:0",
+        ...(session.sourceHasAudio ? ["-map", "0:a:0?"] : []),
+        ...baseEncodingArgs
+      );
+    }
 
     const ffmpeg = spawn("ffmpeg", ffmpegArgs, {
       stdio: ["ignore", "ignore", "pipe"],
@@ -166,6 +473,16 @@ class WorkerManager {
     });
   }
 
+  private respawnForAudioTransition(session: ManagedSession, reason: string) {
+    if (!session.process || session.manualStop) {
+      return;
+    }
+
+    console.log(`[WorkerManager][AudioQueue] Respawning FFmpeg for ${session.liveId}: ${reason}`);
+    session.intentionalRespawn = true;
+    session.process.kill("SIGTERM");
+  }
+
   private async handleProcessClose(
     session: ManagedSession,
     code: number | null,
@@ -178,6 +495,18 @@ class WorkerManager {
     );
 
     session.process = null;
+
+    if (session.intentionalRespawn) {
+      session.intentionalRespawn = false;
+      if (session.manualStop) {
+        await this.updateSessionStatus(session.liveId, "STOPPED");
+        this.cleanupSession(session.liveId);
+        return;
+      }
+
+      void this.spawnProcess(session);
+      return;
+    }
 
     if (session.manualStop) {
       await this.updateSessionStatus(session.liveId, "STOPPED");
@@ -212,7 +541,7 @@ class WorkerManager {
         return;
       }
 
-      this.spawnProcess(session);
+      void this.spawnProcess(session);
     }, delay);
   }
 
@@ -242,6 +571,24 @@ class WorkerManager {
       session.restartTimer = null;
     }
 
+    if (session.audioActivationTimer) {
+      clearTimeout(session.audioActivationTimer);
+      session.audioActivationTimer = null;
+    }
+
+    if (session.currentAudioEventTimer) {
+      clearTimeout(session.currentAudioEventTimer);
+      session.currentAudioEventTimer = null;
+    }
+
+    if (session.audioPollTimer) {
+      clearInterval(session.audioPollTimer);
+      session.audioPollTimer = null;
+    }
+
+    void cleanupAudioBatchFiles(session.currentAudioBatch);
+    session.currentAudioBatch = null;
+
     this.sessions.delete(liveId);
   }
 
@@ -262,6 +609,24 @@ class WorkerManager {
       clearTimeout(session.restartTimer);
       session.restartTimer = null;
     }
+
+    if (session.audioActivationTimer) {
+      clearTimeout(session.audioActivationTimer);
+      session.audioActivationTimer = null;
+    }
+
+    if (session.currentAudioEventTimer) {
+      clearTimeout(session.currentAudioEventTimer);
+      session.currentAudioEventTimer = null;
+    }
+
+    if (session.audioPollTimer) {
+      clearInterval(session.audioPollTimer);
+      session.audioPollTimer = null;
+    }
+
+    void cleanupAudioBatchFiles(session.currentAudioBatch);
+    session.currentAudioBatch = null;
 
     if (session.process) {
       console.log(`[WorkerManager] Killing process for ${liveId}`);
