@@ -20,7 +20,8 @@
     "pm2:logs": "pm2 logs",
     "pm2:monit": "pm2 monit",
     "pm2:save": "pm2 save",
-    "pm2:startup": "pm2 startup"
+    "pm2:startup": "pm2 startup",
+    "saas:backfill-default-tenant": "node scripts/backfill-default-tenant.js"
   },
   "keywords": [],
   "author": "",

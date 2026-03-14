@@ -110,6 +110,11 @@ Catatan:
 - gunakan tenant default seperti:
   - name: `Default Workspace`
   - slug: `default-workspace`
+- command yang disarankan:
+
+```bash
+npm run saas:backfill-default-tenant
+```
 
 ### Commit 3: Auth Bridge
 
@@ -205,6 +210,10 @@ Catatan:
 3. Buat tenant default.
 4. Backfill semua row lama ke tenant default.
 5. Setelah semua data terisi, ubah `tenant_id` menjadi required.
+
+Script awal yang sudah disiapkan:
+
+- [backfill-default-tenant.js](/e:/PROJECT/Next-JS/LoopLive-AI-Livestream-System/scripts/backfill-default-tenant.js)
 
 ### Data yang Harus Dibackfill
 
