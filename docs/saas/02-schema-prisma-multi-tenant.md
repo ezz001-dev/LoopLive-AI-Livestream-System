@@ -311,6 +311,246 @@ model tenants {
 }
 ```
 
+## Draft Prisma Schema Siap Implementasi
+
+Bagian ini adalah draft yang lebih dekat ke implementasi nyata di branch SaaS. Tujuannya bukan untuk langsung di-copy mentah ke production, tetapi untuk menjadi baseline refactor yang konsisten dengan schema LoopLive saat ini.
+
+Prinsip draft ini:
+
+- mempertahankan model utama yang sudah ada
+- menambahkan `tenant_id` pada data tenant-facing
+- memisahkan identity user tenant dan admin internal
+- menyiapkan settings, secrets, subscription, usage, dan audit
+
+```prisma
+model tenants {
+  id         String   @id @default(uuid())
+  name       String
+  slug       String   @unique
+  status     String   @default("active")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  settings       tenant_settings?
+  users          tenant_users[]
+  videos         videos[]
+  live_sessions  live_sessions[]
+  sound_events   sound_events[]
+  secrets        tenant_secrets[]
+  subscriptions  subscriptions[]
+  usage_records  usage_records[]
+  audit_logs     audit_logs[]
+}
+
+model users {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  display_name  String?
+  status        String   @default("active")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  tenants       tenant_users[]
+  audit_logs    audit_logs[]
+  internal_role internal_admins?
+}
+
+model tenant_users {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  user_id    String
+  role       String   @default("owner")
+  created_at DateTime @default(now())
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   users   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, user_id])
+}
+
+model internal_admins {
+  id         String   @id @default(uuid())
+  user_id     String   @unique
+  role        String   @default("support_admin")
+  status      String   @default("active")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model tenant_settings {
+  id                         String   @id @default(uuid())
+  tenant_id                   String   @unique
+  ai_provider                 String   @default("openai")
+  tts_provider                String   @default("openai")
+  yt_channel_handle           String?
+  tiktok_channel_handle       String?
+  ai_name                     String   @default("Loop")
+  ai_persona                  String?  @db.Text
+  ai_tone_default             String   @default("friendly")
+  max_response_length         Int      @default(150)
+  storage_provider            String   @default("r2")
+  r2_public_url               String?
+  r2_signed_reads             Boolean  @default(false)
+  r2_signed_read_ttl_seconds  Int      @default(43200)
+  default_loop_mode           String   @default("infinite")
+  updated_at                  DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+model tenant_secrets {
+  id              String   @id @default(uuid())
+  tenant_id        String
+  key              String
+  encrypted_value  String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, key])
+}
+
+model subscriptions {
+  id                       String   @id @default(uuid())
+  tenant_id                 String
+  plan_code                 String
+  status                    String   @default("trialing")
+  billing_provider          String?
+  billing_customer_id       String?
+  billing_subscription_id   String?
+  trial_ends_at             DateTime?
+  current_period_end        DateTime?
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+model usage_records {
+  id           String   @id @default(uuid())
+  tenant_id     String
+  metric        String
+  quantity      Decimal  @db.Decimal(18, 4)
+  period_start  DateTime
+  period_end    DateTime
+  metadata      Json?
+  created_at    DateTime @default(now())
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+model audit_logs {
+  id            String   @id @default(uuid())
+  tenant_id      String?
+  actor_user_id  String?
+  actor_type     String
+  action         String
+  target_type    String
+  target_id      String?
+  metadata       Json?
+  created_at     DateTime @default(now())
+
+  tenant tenants? @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   users?   @relation(fields: [actor_user_id], references: [id], onDelete: SetNull)
+}
+```
+
+## Patch ke Model Existing
+
+Untuk branch SaaS, model yang sudah ada sekarang paling realistis diubah seperti ini:
+
+### `videos`
+
+Tambahkan:
+
+```prisma
+tenant_id String
+tenant    tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+@@index([tenant_id, created_at])
+```
+
+Tetap pertahankan field existing:
+
+- `file_size`
+- `storage_provider`
+- `storage_key`
+- `public_url`
+
+### `live_sessions`
+
+Tambahkan:
+
+```prisma
+tenant_id String
+tenant    tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+@@index([tenant_id, status])
+@@index([tenant_id, created_at])
+```
+
+Tetap pertahankan field existing:
+
+- `target_rtmp_url`
+- `stream_key`
+- `loop_mode`
+- `loop_count`
+- field schedule legacy dan `session_schedules`
+
+### `sound_events`
+
+Tambahkan:
+
+```prisma
+tenant_id String
+tenant    tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+@@index([tenant_id, active])
+```
+
+### `session_schedules`
+
+Minimal tetap bergantung pada `live_session_id`, tetapi pada tahap implementasi query harus selalu tenant-scoped lewat relasi `live_session`.
+
+## Route Split yang Disarankan
+
+Supaya schema ini benar-benar berguna, route aplikasi sebaiknya sejak awal dibedakan:
+
+- `tenant dashboard`
+  Contoh:
+  - `/app`
+  - `/app/videos`
+  - `/app/live`
+  - `/app/settings`
+
+- `internal ops console`
+  Contoh:
+  - `/ops`
+  - `/ops/tenants`
+  - `/ops/incidents`
+  - `/ops/audit`
+
+Tujuannya agar:
+
+- auth boundary jelas
+- role model tidak campur
+- support tooling tidak bocor ke tenant
+
+## Rekomendasi Implementasi Tahap 1
+
+Kalau ingin mulai implementasi branch SaaS tanpa terlalu besar sekali jalan, urutan paling aman:
+
+1. buat `tenants`, `users`, `tenant_users`
+2. tambahkan `tenant_id` ke `videos`, `live_sessions`, `sound_events`
+3. buat tenant default untuk semua data lama
+4. backfill semua row lama
+5. ubah auth dari `admin_users` ke `users`
+6. baru pecah `system_settings` menjadi `tenant_settings` dan `tenant_secrets`
+
 ## Migrasi Bertahap yang Aman
 
 1. Buat model `tenants` dan `tenant_users`.
