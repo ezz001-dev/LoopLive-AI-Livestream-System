@@ -11,6 +11,8 @@ Compute akan menjadi salah satu cost terbesar karena FFmpeg adalah workload akti
 Komponen:
 
 - app server Next.js
+- tenant-facing dashboard traffic
+- internal ops console
 - worker streaming FFmpeg
 - scheduler/background jobs
 - Redis worker
@@ -21,11 +23,16 @@ Driver cost:
 - resolusi dan bitrate output
 - durasi live per hari
 - jumlah retry atau restart
+- kompleksitas audio interaktif:
+  - TTS
+  - sound effect
+  - ducking/mixing
 
 Catatan:
 
 - worker FFmpeg biasanya lebih mahal daripada dashboard web biasa
 - concurrent stream adalah metrik harga yang sangat penting
+- internal ops console biasanya bukan cost terbesar, tapi tetap perlu dipisahkan dari dashboard tenant secara operasional
 
 ## 2. Storage
 
@@ -35,6 +42,7 @@ Komponen:
 
 - object storage video
 - audio TTS sementara
+- audio event/sound file
 - log retention opsional
 
 Driver cost:
@@ -57,6 +65,7 @@ Komponen:
 - ingress dari R2 ke worker
 - egress dari worker ke YouTube/TikTok RTMP
 - trafik dashboard
+- trafik internal ops console
 
 Driver cost:
 
@@ -64,6 +73,7 @@ Driver cost:
 - durasi stream
 - jumlah stream bersamaan
 - internal preview jika tetap disediakan
+- jumlah user tenant aktif di dashboard
 
 Catatan:
 
@@ -119,12 +129,14 @@ Komponen:
 - metrics
 - alerting
 - support tools
+- internal ops access layer / Zero Trust gateway
 
 Driver cost:
 
 - volume log FFmpeg
 - jumlah tenant
 - kebutuhan observability per stream
+- jumlah intervensi support internal
 
 Catatan:
 
@@ -152,6 +164,11 @@ Untuk LoopLive AI, tiga driver paling penting kemungkinan:
 2. average stream duration
 3. AI/TTS usage per stream
 
+Driver lain yang juga relevan:
+
+4. audio interaktif per stream
+5. jumlah tenant aktif yang mengakses dashboard bersamaan
+
 ## Metrik yang Perlu Dicatat Sejak Awal
 
 - active streams per tenant
@@ -161,6 +178,8 @@ Untuk LoopLive AI, tiga driver paling penting kemungkinan:
 - TTS seconds per tenant
 - failed stream count
 - worker restart count
+- support intervention count
+- number of internal admin actions
 
 ## Rekomendasi Model Harga
 
@@ -229,5 +248,12 @@ Untuk SaaS seperti ini, cost bukan terutama dari dashboard web, melainkan dari:
 - FFmpeg worker runtime
 - bandwidth streaming
 - AI/TTS usage
+
+Namun secara arsitektur, tetap penting membedakan:
+
+- `tenant-facing dashboard`
+- `internal ops console`
+
+karena walau cost internal ops biasanya lebih kecil, kebocoran akses atau support tooling yang buruk bisa menjadi biaya operasional yang besar.
 
 Karena itu pricing sebaiknya jangan hanya berbasis jumlah user, tetapi juga berbasis workload streaming.

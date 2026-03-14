@@ -12,6 +12,35 @@ Saat ini beberapa bagian masih terasa single-tenant:
 - `videos` belum terikat tenant
 - `live_sessions` belum terikat tenant
 - secret seperti API key, RTMP key, dan cookie masih belum tenant-scoped
+- `admin_users` masih mencampur konsep admin internal dan user dashboard
+
+## Boundary Akses yang Perlu Dibedakan
+
+Sebelum merancang schema SaaS, perlu dibedakan dua surface:
+
+### tenant-facing admin dashboard
+
+Dipakai customer untuk:
+
+- upload video
+- mengatur stream destination
+- membuat dan menjalankan session
+- mengelola scheduler
+- mengatur AI persona
+
+Surface ini adalah bagian dari produk SaaS. Maka auth-nya harus tenant-aware dan tidak boleh dianggap sebagai panel internal-only.
+
+### internal ops console
+
+Dipakai tim internal untuk:
+
+- support tenant
+- suspend tenant
+- reset state stream
+- audit operasional
+- melihat error lintas tenant
+
+Surface ini harus dipisahkan dari dashboard tenant, baik secara route, role, maupun model akses.
 
 ## Model Baru yang Disarankan
 
@@ -60,6 +89,29 @@ Field utama:
 - `created_at`
 - `updated_at`
 
+Catatan:
+
+- `users` adalah identity untuk dashboard tenant
+- internal ops dapat memakai tabel tambahan atau flag role/platform-access terpisah
+
+### internal_admins atau platform_admins
+
+Model opsional untuk memisahkan user internal dari user tenant-facing.
+
+Field utama:
+
+- `id`
+- `user_id`
+- `role`
+- `status`
+- `created_at`
+
+Contoh role:
+
+- `support_admin`
+- `ops_admin`
+- `super_admin`
+
 ### tenant_settings
 
 Pengganti `system_settings` global untuk kebutuhan tenant.
@@ -74,6 +126,10 @@ Field utama:
 - `tiktok_channel_handle`
 - `redis_namespace`
 - `storage_provider`
+- `r2_public_url`
+- `r2_signed_reads`
+- `r2_signed_read_ttl_seconds`
+- `default_loop_mode`
 - `updated_at`
 
 ### tenant_secrets
@@ -97,6 +153,11 @@ Contoh `key`:
 - `stream_key_default`
 - `r2_access_key_id`
 - `r2_secret_access_key`
+
+Catatan:
+
+- secret tenant jangan dicampur dengan secret platform internal
+- secret internal ops console sebaiknya disimpan terpisah
 
 ### subscriptions
 
@@ -143,11 +204,25 @@ Tambahkan:
 
 - `tenant_id`
 
+Field yang perlu dipertahankan karena sudah ada di app saat ini:
+
+- `file_size`
+- `storage_provider`
+- `storage_key`
+- `public_url`
+
 ### live_sessions
 
 Tambahkan:
 
 - `tenant_id`
+
+Field yang perlu dipertahankan karena sudah ada di app saat ini:
+
+- `loop_mode`
+- `loop_count`
+- `target_rtmp_url`
+- `stream_key`
 
 ### session_schedules
 
@@ -167,6 +242,41 @@ Tambahkan:
 
 - `tenant_id`
 
+Catatan:
+
+- jika fitur audio interaktif diteruskan, sound event bisa menjadi fitur premium tenant-facing
+- internal ops tidak seharusnya mengubah sound event tenant tanpa audit trail
+
+### audit_logs
+
+Sangat disarankan untuk SaaS karena ada dua surface yang berbeda.
+
+Field utama:
+
+- `id`
+- `tenant_id`
+- `actor_user_id`
+- `actor_type`
+- `action`
+- `target_type`
+- `target_id`
+- `metadata`
+- `created_at`
+
+Contoh `actor_type`:
+
+- `tenant_user`
+- `internal_admin`
+
+### support_sessions atau tenant_access_grants
+
+Opsional, tetapi berguna untuk internal ops console.
+
+Tujuan:
+
+- mencatat kapan tim internal melihat tenant tertentu
+- mendukung support impersonation yang terlacak
+
 ## Arah Relasi yang Disarankan
 
 - `tenant -> videos`
@@ -177,6 +287,8 @@ Tambahkan:
 - `tenant -> subscriptions`
 - `tenant -> usage_records`
 - `user -> tenant_users -> tenant`
+- `platform_admin -> internal ops console`
+- `tenant -> audit_logs`
 
 ## Contoh Struktur Prisma Tingkat Tinggi
 
@@ -208,6 +320,7 @@ model tenants {
 5. Update seluruh query agar wajib memakai tenant scope.
 6. Pecah `system_settings` menjadi `tenant_settings`.
 7. Pindahkan secret sensitif ke `tenant_secrets`.
+8. Pisahkan internal ops console dari dashboard tenant.
 
 ## Catatan Penting
 
@@ -215,3 +328,4 @@ model tenants {
 - scheduler dan worker harus menerima `tenant_id`
 - log dan usage sebaiknya bisa difilter per tenant
 - admin internal super-user harus dipisahkan dari user tenant biasa
+- route dashboard tenant dan route internal ops sebaiknya dibedakan sejak awal

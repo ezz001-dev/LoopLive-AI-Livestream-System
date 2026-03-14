@@ -24,11 +24,14 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
 - pisahkan settings global dan tenant settings
 - siapkan auth, membership, dan role dasar
 - siapkan batas akses per tenant
+- pisahkan tenant dashboard dan internal ops console
 
 ### Deliverables
 
 - model `tenants`
 - model `tenant_users`
+- model `users`
+- role model untuk dashboard tenant
 - relasi tenant ke:
   - live sessions
   - videos
@@ -36,10 +39,14 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
   - AI settings
   - platform secrets
 - middleware tenant scoping
-- role dasar:
+- role dasar dashboard tenant:
   - owner
   - admin
   - operator
+- rancangan internal ops console:
+  - support admin
+  - super admin
+  - read-only ops
 - migrasi data dari sistem existing ke tenant default
 
 ### Risiko
@@ -47,6 +54,7 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
 - query lama masih membaca data global
 - worker/scheduler belum aware tenant
 - secret settings lama masih global
+- dashboard customer dan panel internal masih bercampur
 
 ## Bulan 2: Reliability and Operations
 
@@ -56,6 +64,7 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
 - tambah observability
 - tambah audit trail
 - tambah usage metering
+- tetapkan security boundary untuk surface tenant vs internal
 
 ### Deliverables
 
@@ -79,12 +88,22 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
   - settings update
   - delete asset
   - start/stop stream
+- policy akses untuk `internal ops console`
+  - Zero Trust / gateway
+  - audit trail admin action
+  - tenant impersonation yang terlacak
+- session activity log untuk dashboard tenant
+  - upload asset
+  - edit scheduler
+  - rotate stream destination
 
 ### Risiko
 
 - stream aktif mati tapi dashboard masih `LIVE`
 - cost usage tidak terukur
 - support sulit investigasi insiden tenant
+- surface internal terlalu terbuka
+- boundary customer vs internal tidak jelas
 
 ## Bulan 3: Monetization and Self-Serve
 
@@ -93,6 +112,7 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
 - tambah billing
 - tambah onboarding
 - tambah halaman usage dan plan enforcement
+- finalisasi perbedaan fitur tenant dan internal ops
 
 ### Deliverables
 
@@ -118,11 +138,17 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
   - test live
 - billing page
 - usage dashboard
+- internal ops console minimal:
+  - lookup tenant
+  - reset stuck stream state
+  - inspect last error
+  - suspend/reactivate tenant
 
 ### Risiko
 
 - billing aktif tapi enforcement belum konsisten
 - onboarding terlalu teknis untuk user non-dev
+- customer dashboard membawa terlalu banyak fitur internal
 
 ## Milestone Checklist
 
@@ -131,12 +157,14 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
 - tenant model aktif
 - semua data sudah tenant-scoped
 - auth multi-user dasar jalan
+- tenant dashboard dipisah konsepnya dari internal ops
 
 ### Release Beta SaaS
 
 - worker terpisah
 - health monitoring aktif
 - usage tracking dasar aktif
+- internal ops console punya akses terbatas dan terproteksi
 
 ### Release Public SaaS
 
@@ -149,3 +177,5 @@ Membawa LoopLive AI dari aplikasi single-tenant menjadi SaaS yang:
 - jangan mulai billing sebelum multi-tenant selesai
 - jangan jual SLA sebelum monitoring dan audit log matang
 - jangan buka public signup sebelum platform secret storage aman
+- jangan lindungi dashboard customer dengan gateway internal-only
+- gunakan gateway/security layer terutama untuk internal ops console

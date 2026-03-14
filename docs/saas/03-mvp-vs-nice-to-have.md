@@ -6,16 +6,26 @@ Memisahkan fitur yang wajib ada agar produk bisa dijual, dari fitur yang bagus t
 
 ## MVP SaaS
 
-### Core Product
+### Tenant Dashboard
 
 - signup dan login
-- tenant/workspace tunggal per customer
+- workspace tunggal per tenant
+- dashboard untuk upload video, create session, edit scheduler, dan start/stop stream
+- role tenant dasar:
+  - owner
+  - admin
+  - operator
+
+### Core Product
+
 - upload video ke storage
 - create/edit/delete live session
 - direct RTMP ke YouTube/TikTok
 - start/stop stream manual
 - scheduler dasar
 - AI persona per session
+- video loop configuration
+- R2 asset library
 
 ### Reliability
 
@@ -32,6 +42,16 @@ Memisahkan fitur yang wajib ada agar produk bisa dijual, dari fitur yang bagus t
 - tenant data isolation
 - encrypted secret storage
 - audit log dasar untuk aksi penting
+- CSRF/session hardening untuk tenant dashboard
+
+### Internal Ops
+
+- internal ops console terpisah dari dashboard tenant
+- lookup tenant
+- reset stream state
+- lihat last error
+- suspend/reactivate tenant
+- akses internal dilindungi gateway / Zero Trust
 
 ### Billing
 
@@ -42,10 +62,9 @@ Memisahkan fitur yang wajib ada agar produk bisa dijual, dari fitur yang bagus t
 
 ### Supportability
 
-- admin internal view untuk tenant
-- reset stream state
-- lihat error terakhir
+- internal support bisa melihat tenant dengan audit trail
 - lihat usage tenant
+- lihat error terakhir
 
 ## Nice-to-Have
 
@@ -55,6 +74,7 @@ Memisahkan fitur yang wajib ada agar produk bisa dijual, dari fitur yang bagus t
 - komentar internal antar operator
 - approval workflow
 - scene/profile preset banyak
+- sound effect / TTS / ducking sebagai fitur interaktif lanjutan
 
 ### Streaming Depth
 
@@ -84,12 +104,14 @@ Fitur yang paling masuk akal untuk dijual lebih dulu:
 
 - 1 tenant = 1 workspace
 - 1 owner account
+- tenant-facing dashboard yang sederhana dan stabil
 - direct stream ke YouTube/TikTok
 - video upload ke R2
 - session scheduler
 - AI chat persona
 - stream monitoring dasar
 - simple usage quota
+- internal ops console minimum untuk support
 
 ## Fitur yang Sebaiknya Ditunda
 
@@ -111,6 +133,7 @@ Produk MVP dianggap siap dijual jika:
 - platform secret tersimpan aman
 - dashboard menunjukkan status yang jujur
 - billing dan limit plan sudah aktif
+- surface tenant dan internal ops tidak bercampur
 
 ## Red Flags Jika Dipaksakan Masuk MVP
 
@@ -118,3 +141,4 @@ Produk MVP dianggap siap dijual jika:
 - multi-tenant belum matang tapi public signup dibuka
 - secret masih plaintext
 - support belum bisa melihat insiden tenant
+- dashboard customer masih diperlakukan seperti panel internal

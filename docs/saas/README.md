@@ -23,5 +23,16 @@ Asumsi yang dipakai dalam dokumen ini:
 - Produk utama: livestream automation untuk YouTube dan TikTok.
 - Streaming engine: FFmpeg worker yang mendorong direct RTMP ke platform.
 - Storage asset: local atau Cloudflare R2.
-- Admin/dashboard: Next.js + Prisma + PostgreSQL + Redis.
+- Dashboard tenant-facing: Next.js + Prisma + PostgreSQL + Redis.
+- Internal ops console: surface terpisah untuk tim internal, bukan dashboard tenant.
 - Target awal: SaaS self-serve untuk creator, studio kecil, dan agency ringan.
+
+## Batasan Security
+
+Pemisahan penting yang dipakai di dokumen ini:
+
+- `tenant-facing admin dashboard`
+  Dipakai customer untuk mengelola video, session, scheduler, dan stream. Surface ini adalah bagian dari produk SaaS dan tidak boleh diperlakukan sebagai panel internal-only.
+
+- `internal ops console`
+  Dipakai tim internal untuk support, audit, reset state, suspend tenant, dan operasi sensitif lainnya. Surface ini cocok dilindungi dengan security gateway seperti Cloudflare Zero Trust.
