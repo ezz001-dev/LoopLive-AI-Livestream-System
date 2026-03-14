@@ -1,11 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 import { notFound } from "next/navigation";
 import ClientSessionPage from "@/components/admin/ClientSessionPage";
 
 export default async function SessionControlPage({ params }: { params: { id: string } }) {
   const { id } = await params;
-  const session = await prisma.live_sessions.findUnique({
-    where: { id },
+  const tenantId = await getCurrentTenantId();
+
+  const session = await (prisma.live_sessions as any).findFirst({
+    where: { id, tenant_id: tenantId },
     include: {
       video: true,
       chat_logs: {

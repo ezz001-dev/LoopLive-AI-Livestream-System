@@ -1,6 +1,7 @@
 import React from "react";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 import Link from "next/link";
 import LiveSessionsHeader from "@/components/admin/LiveSessionsHeader";
 import LiveSessionActions from "@/components/admin/LiveSessionActions";
@@ -8,7 +9,10 @@ import LiveSessionActions from "@/components/admin/LiveSessionActions";
 
 
 export default async function LiveSessionsPage() {
-  const sessions = await prisma.live_sessions.findMany({
+  const tenantId = await getCurrentTenantId();
+
+  const sessions = await (prisma.live_sessions as any).findMany({
+    where: { tenant_id: tenantId },
     orderBy: { created_at: "desc" }
   });
 
@@ -34,7 +38,7 @@ export default async function LiveSessionsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
-            {sessions.map((session) => (
+            {sessions.map((session: any) => (
               <tr key={session.id} className="hover:bg-slate-800/30 transition-colors group">
                 <td className="px-6 py-5">
                   {(() => {

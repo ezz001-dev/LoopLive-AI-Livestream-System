@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function POST(req: Request) {
   try {
+    const tenantId = await getCurrentTenantId();
     const {
       title,
       video_id,
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
 
     const newSession = await (prisma.live_sessions as any).create({
         data: {
+            tenant_id: tenantId,
             title,
             video_id,
             context_text: context_text || "",

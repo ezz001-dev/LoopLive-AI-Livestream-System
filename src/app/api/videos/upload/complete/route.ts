@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyUploadedVideoObject } from "@/lib/storage";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function POST(req: Request) {
   try {
+    const tenantId = await getCurrentTenantId();
     const body = await req.json();
 
     if (!body?.id || !body?.filename || !body?.file_type || !body?.storage_provider || !body?.file_path) {
@@ -28,9 +30,10 @@ export async function POST(req: Request) {
       await verifyUploadedVideoObject(videoDraft);
     }
 
-    const savedVideo = await prisma.videos.create({
+    const savedVideo = await (prisma.videos as any).create({
       data: {
         id: videoDraft.id,
+        tenant_id: tenantId,
         filename: videoDraft.originalFilename,
         file_path: videoDraft.filePath,
         file_type: videoDraft.fileType,

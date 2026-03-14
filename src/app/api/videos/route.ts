@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStorageProvider, isR2StorageEnabled } from "@/lib/storage-config";
 import { uploadVideoAsset } from "@/lib/storage";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -27,6 +28,7 @@ function serializeVideo(video: {
 
 export async function POST(req: Request) {
   try {
+    const tenantId = await getCurrentTenantId();
     const contentType = req.headers.get("content-type") || "";
     
     // Check if it's a multipart form (standard upload)
@@ -49,9 +51,10 @@ export async function POST(req: Request) {
     const uploadedAsset = await uploadVideoAsset(file);
 
     // Save to Database
-    const savedVideo = await prisma.videos.create({
+    const savedVideo = await (prisma.videos as any).create({
       data: {
         id: uploadedAsset.id,
+        tenant_id: tenantId,
         filename: uploadedAsset.originalFilename,
         file_path: uploadedAsset.filePath,
         file_type: file.type,
@@ -72,7 +75,10 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const videos = await prisma.videos.findMany({
+    const tenantId = await getCurrentTenantId();
+
+    const videos = await (prisma.videos as any).findMany({
+      where: { tenant_id: tenantId },
       orderBy: { created_at: "desc" },
       select: {
         id: true,

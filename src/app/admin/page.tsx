@@ -1,15 +1,19 @@
 import React from "react";
 import { Radio, Users, Video, Clock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 import LiveSessionsHeader from "@/components/admin/LiveSessionsHeader";
 
 export default async function DashboardPage() {
+  const tenantId = await getCurrentTenantId();
+
   // Fetch real statistics
   const [activeStreams, totalViewersData, totalVideos, recentSessions] = await Promise.all([
-    prisma.live_sessions.count({ where: { status: "LIVE" } }),
-    prisma.live_sessions.aggregate({ _sum: { viewer_count: true } }),
-    prisma.videos.count(),
-    prisma.live_sessions.findMany({
+    (prisma.live_sessions as any).count({ where: { tenant_id: tenantId, status: "LIVE" } }),
+    (prisma.live_sessions as any).aggregate({ where: { tenant_id: tenantId }, _sum: { viewer_count: true } }),
+    (prisma.videos as any).count({ where: { tenant_id: tenantId } }),
+    (prisma.live_sessions as any).findMany({
+      where: { tenant_id: tenantId },
       orderBy: { created_at: "desc" },
       take: 4,
     }),
@@ -19,7 +23,7 @@ export default async function DashboardPage() {
   
   // Estimate stream hours (simplified logic: total sessions * average duration or just a static high number for now)
   // Since we don't have duration tracking yet, we'll keep it as a placeholder but more realistic
-  const totalSessions = await prisma.live_sessions.count();
+  const totalSessions = await (prisma.live_sessions as any).count({ where: { tenant_id: tenantId } });
   const estimatedHours = totalSessions * 1.5; // Placeholder multiplier
 
   const stats = [
@@ -67,7 +71,7 @@ export default async function DashboardPage() {
           <h3 className="text-lg font-bold text-white mb-4">Recent Sessions</h3>
           <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             {recentSessions.length > 0 ? (
-              recentSessions.map((session) => (
+              recentSessions.map((session: any) => (
                 <div key={session.id} className="flex gap-4 items-start group">
                   <div className={`h-2 w-2 rounded-full mt-2 transition-all ${session.status === 'LIVE' ? 'bg-red-500 animate-pulse' : 'bg-slate-700'}`} />
                   <div>
@@ -89,4 +93,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-

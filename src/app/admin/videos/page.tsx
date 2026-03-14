@@ -1,12 +1,16 @@
 import React from "react";
 import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 
 import VideoLibraryHeader from "@/components/admin/VideoLibraryHeader";
 import VideoAssetCard from "@/components/admin/VideoAssetCard";
 
 export default async function VideosPage() {
-  const videos = await prisma.videos.findMany({
+  const tenantId = await getCurrentTenantId();
+
+  const videos = await (prisma.videos as any).findMany({
+    where: { tenant_id: tenantId },
     orderBy: { created_at: "desc" },
     select: {
       id: true,
@@ -33,7 +37,7 @@ export default async function VideosPage() {
           <p className="mt-1 text-slate-500 text-xs">Dukungan MP4 dan MOV hingga 2GB</p>
         </div>
 
-        {(videos.map((video) => (
+        {(videos.map((video: any) => (
           <VideoAssetCard key={video.id} video={video} />
         )) as React.ReactNode)}
       </div>

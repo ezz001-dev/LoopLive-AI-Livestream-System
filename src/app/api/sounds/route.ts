@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 
 export async function GET() {
   try {
-    const sounds = await prisma.sound_events.findMany({
+    const tenantId = await getCurrentTenantId();
+    const sounds = await (prisma.sound_events as any).findMany({
+      where: { tenant_id: tenantId },
       orderBy: { created_at: "desc" },
     });
     return NextResponse.json(sounds);
@@ -14,6 +17,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const tenantId = await getCurrentTenantId();
     const body = await req.json();
     const { event_type, keyword, audio_url } = body;
 
@@ -21,8 +25,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const sound = await prisma.sound_events.create({
+    const sound = await (prisma.sound_events as any).create({
       data: {
+        tenant_id: tenantId,
         event_type,
         keyword: event_type === "keyword" ? keyword : null,
         audio_url,
