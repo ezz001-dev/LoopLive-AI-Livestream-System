@@ -8,6 +8,7 @@ Dokumen ini merangkum empat area utama untuk membawa LoopLive AI dari aplikasi o
 2. [Desain Schema Prisma Multi-Tenant](./02-schema-prisma-multi-tenant.md)
 3. [MVP SaaS vs Nice-to-Have](./03-mvp-vs-nice-to-have.md)
 4. [Komponen Cost Utama](./04-komponen-cost-utama.md)
+5. [Branch Plan Implementasi Tahap 1](./05-implementasi-tahap-1-branch-plan.md)
 
 ## Cara Membaca
 
@@ -15,6 +16,7 @@ Dokumen ini merangkum empat area utama untuk membawa LoopLive AI dari aplikasi o
 - Lanjut ke schema multi-tenant untuk fondasi data.
 - Gunakan dokumen MVP untuk menentukan scope produk awal.
 - Pakai komponen cost untuk validasi model bisnis dan pricing.
+- Pakai branch plan tahap 1 saat mulai implementasi nyata di branch SaaS.
 
 ## Konteks
 
