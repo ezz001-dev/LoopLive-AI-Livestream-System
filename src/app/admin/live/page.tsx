@@ -17,7 +17,7 @@ export default async function LiveSessionsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Live Sessions</h2>
-          <p className="text-slate-400 mt-1">Configure and monitor your AI stream orchestration.</p>
+          <p className="text-slate-400 mt-1">Configure direct YouTube/TikTok sessions, scheduling, and AI orchestration.</p>
         </div>
         <LiveSessionsHeader />
       </div>

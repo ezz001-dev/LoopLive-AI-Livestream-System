@@ -51,6 +51,16 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
     repeat_end_date: '',
   });
 
+  function applyPlatformPreset(platform: "youtube" | "tiktok") {
+    setFormData({
+      ...formData,
+      target_rtmp_url:
+        platform === "youtube"
+          ? "rtmp://a.rtmp.youtube.com/live2"
+          : "rtmp://push-rtmp-global.tiktok.com/live/",
+    });
+  }
+
   // Load schedules on mount
   useEffect(() => {
     loadSchedules();
@@ -295,14 +305,14 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
               className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:outline-none transition-colors font-mono text-sm"
             />
             <p className="text-slate-500 text-xs mt-1">
-              Update this when your YouTube live stream ID changes
+              Update this when your YouTube live stream ID changes. This field only affects chat polling.
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="rtmp-url" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
-                RTMP URL
+                Target RTMP URL
               </label>
               <input
                 id="rtmp-url"
@@ -312,6 +322,22 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                 placeholder="rtmp://a.rtmp.youtube.com/live2"
                 className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:outline-none transition-colors text-sm"
               />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyPlatformPreset("youtube")}
+                  className="rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-red-300 transition hover:bg-red-500/20"
+                >
+                  YouTube
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPlatformPreset("tiktok")}
+                  className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300 transition hover:bg-cyan-400/20"
+                >
+                  TikTok
+                </button>
+              </div>
             </div>
             <div>
               <label htmlFor="stream-key" className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">

@@ -47,12 +47,13 @@ export async function POST(
 
         const videoSource = await resolveVideoInputSource(session.video);
 
-        // Construct RTMP Destination
+        // Construct RTMP destination.
+        // Direct platform RTMP is the preferred path; MediaMTX remains an internal fallback.
         const systemSettings = await prisma.system_settings.findUnique({ where: { id: "1" } });
         const mediamtxHost = systemSettings?.mediamtx_host || "localhost";
         const rtmpPort = systemSettings?.rtmp_port || 1935;
 
-        // If target_rtmp_url is provided (e.g. YouTube), use it. Otherwise use internal MediaMTX.
+        // If target_rtmp_url is provided (e.g. YouTube/TikTok), use it. Otherwise use internal MediaMTX.
         let rtmpUrl = `rtmp://${mediamtxHost}:${rtmpPort}/live/${id}`;
         if (session.target_rtmp_url) {
             let baseUrl = session.target_rtmp_url;
@@ -61,7 +62,7 @@ export async function POST(
             rtmpUrl = `${baseUrl}${session.stream_key || ""}`;
             console.log(`[Start API] Using external RTMP destination: ${rtmpUrl.split(session.stream_key || "SECRET")[0]}***`);
         } else {
-            console.log(`[Start API] Using internal RTMP destination (MediaMTX): ${rtmpUrl}`);
+            console.log(`[Start API] No platform RTMP configured. Falling back to internal MediaMTX: ${rtmpUrl}`);
         }
 
         try {

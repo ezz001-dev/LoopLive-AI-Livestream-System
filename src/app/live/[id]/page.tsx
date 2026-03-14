@@ -33,11 +33,12 @@ export default function PublicLivePage({ params }: { params: Promise<{ id: strin
   }, [audioEnabled]);
 
   // 1. Initialize HLS Player
+  // This page depends on MediaMTX HLS output and is mainly useful for internal preview workflows.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // MediaMTX HLS URL (Default bridge from worker)
+    // MediaMTX HLS URL (internal preview bridge)
     const hlsUrl = `http://localhost:8888/live/${liveId}/index.m3u8`;
 
     if (Hls.isSupported()) {
@@ -199,6 +200,9 @@ Details: ${e.message}`);
             <div className="bg-slate-900/80 border border-slate-700 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
                 <User size={12} />
                 0 Viewers
+            </div>
+            <div className="bg-slate-900/80 border border-slate-700 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                Internal Preview
             </div>
             
             {/* Audio Unlock Button */}

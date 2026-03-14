@@ -141,6 +141,9 @@ export default function SessionControls({ sessionId, initialStatus, initialYoutu
           </>
         </button>
       </div>
+      <p className="text-[10px] text-slate-500 px-1">
+        Direct RTMP ke YouTube/TikTok adalah jalur utama. Internal preview hanya relevan bila session fallback ke MediaMTX.
+      </p>
     </div>
   );
 }

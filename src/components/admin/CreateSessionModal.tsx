@@ -39,6 +39,16 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
   });
   const [error, setError] = useState("");
 
+  const applyPlatformPreset = (platform: "youtube" | "tiktok") => {
+    setFormData((prev) => ({
+      ...prev,
+      target_rtmp_url:
+        platform === "youtube"
+          ? "rtmp://a.rtmp.youtube.com/live2"
+          : "rtmp://push-rtmp-global.tiktok.com/live/",
+    }));
+  };
+
   useEffect(() => {
     fetch("/api/videos")
       .then(res => res.json())
@@ -182,13 +192,30 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
 
           <div className="h-px bg-slate-800 my-2" />
 
-          {/* Section 2: External Streaming */}
+          {/* Section 2: Platform Destination */}
           <div className="space-y-4">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">External Streaming (Optional)</h4>
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Platform Destination (Recommended)</h4>
+
+            <div className="flex flex-wrap gap-2 px-1">
+              <button
+                type="button"
+                onClick={() => applyPlatformPreset("youtube")}
+                className="rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red-300 transition hover:bg-red-500/20"
+              >
+                Use YouTube RTMP
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPlatformPreset("tiktok")}
+                className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300 transition hover:bg-cyan-400/20"
+              >
+                Use TikTok RTMP
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-400">Target RTMP Server URL</label>
+                <label className="text-sm font-medium text-slate-400">Target RTMP URL</label>
                 <input
                   type="text"
                   value={formData.target_rtmp_url}
@@ -196,6 +223,9 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
                   placeholder="e.g., rtmp://a.rtmp.youtube.com/live2"
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-cyan-500/50 transition-all font-mono text-xs placeholder:text-slate-600"
                 />
+                <p className="text-[10px] text-slate-500 px-1">
+                  Kosongkan hanya jika Anda memang ingin fallback ke MediaMTX internal untuk preview atau relay.
+                </p>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-400">Stream Key</label>
@@ -219,7 +249,7 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
                 className="w-full bg-slate-950/50 border border-slate-800/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-red-500/30 transition-all font-mono text-xs placeholder:text-slate-600"
               />
               <p className="text-[9px] text-slate-500 leading-relaxed">
-                Kosongkan jika ingin sistem auto-detect Live ID dari channel Anda (membutuhkan konfigurasi di menu Settings).
+                Kosongkan jika ingin sistem auto-detect dari handle YouTube di Settings. Field ini hanya untuk chat polling.
               </p>
             </div>
           </div>

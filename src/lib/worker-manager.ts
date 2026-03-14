@@ -16,7 +16,7 @@ class WorkerManager {
    * Starts a livestream loop for a specific session.
    * @param liveId The unique ID of the live session.
    * @param videoInput The local file path or remote URL for FFmpeg input.
-   * @param streamUrl The RTMP ingestion URL (MediaMTX).
+   * @param streamUrl The RTMP ingestion URL for a platform destination or internal relay.
    */
   public start(liveId: string, videoInput: string, streamUrl: string) {
     if (this.processes.has(liveId)) {

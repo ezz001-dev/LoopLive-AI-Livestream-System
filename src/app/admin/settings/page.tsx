@@ -8,7 +8,7 @@ type Tab = "api_keys" | "ai_providers" | "stream" | "ai_defaults" | "sound_event
 const tabs = [
   { id: "api_keys" as Tab, label: "API Keys", icon: Key, color: "blue" },
   { id: "ai_providers" as Tab, label: "AI Providers", icon: BrainCircuit, color: "purple" },
-  { id: "stream" as Tab, label: "Stream Settings", icon: Globe, color: "green" },
+  { id: "stream" as Tab, label: "Platform & Stream", icon: Globe, color: "green" },
   { id: "ai_defaults" as Tab, label: "AI Defaults", icon: Cpu, color: "orange" },
   { id: "sound_events" as Tab, label: "Sound Events", icon: Volume2, color: "pink" },
 ];
@@ -355,7 +355,15 @@ export default function SettingsPage() {
                 <div className="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-400 border border-green-500/20">
                   <Globe size={20} />
                 </div>
-                <h3 className="text-xl font-bold text-white">Channel & Network</h3>
+                <h3 className="text-xl font-bold text-white">Platform & Automation</h3>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-sky-500/5 rounded-2xl border border-sky-500/10">
+                <span className="text-sky-400">i</span>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Direct RTMP ke YouTube atau TikTok adalah alur utama yang direkomendasikan. MediaMTX di bawah ini
+                  hanya diperlukan bila Anda masih ingin preview atau relay internal.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -386,7 +394,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">App Base URL (Internal Scheduler)</label>
+                  <label className="text-sm font-medium text-slate-400">App Base URL (Scheduler Worker)</label>
                   <input 
                     type="text"
                     name="app_base_url"
@@ -396,7 +404,7 @@ export default function SettingsPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600" 
                   />
                   <p className="text-[10px] text-slate-500 px-1 italic">
-                    The URL where your Next.js application is running.
+                    URL aplikasi Next.js yang dipakai scheduler untuk memanggil start/stop session.
                   </p>
                 </div>
 
@@ -411,7 +419,7 @@ export default function SettingsPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600" 
                   />
                   <p className="text-[10px] text-slate-500 px-1 italic">
-                    Internal security key for automated start/stop actions.
+                    Kunci internal untuk worker scheduler otomatis.
                   </p>
                 </div>
 
@@ -426,16 +434,6 @@ export default function SettingsPage() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all font-mono text-sm placeholder:text-slate-600" 
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">MediaMTX Host</label>
-                  <input 
-                    type="text" 
-                    name="mediamtx_host"
-                    value={settings.mediamtx_host} 
-                    onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all font-mono text-sm" 
-                  />
-                </div>
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-sm font-medium text-slate-400">Redis URL</label>
                   <input 
@@ -448,26 +446,45 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-5 pt-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">RTMP Port</label>
-                  <input 
-                    type="number" 
-                    name="rtmp_port"
-                    value={settings.rtmp_port} 
-                    onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all" 
-                  />
+              <div className="border-t border-slate-800 pt-5 space-y-5">
+                <div>
+                  <h4 className="text-sm font-bold text-white uppercase tracking-widest">Advanced Internal Relay</h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Optional only. Isi ini jika Anda masih menggunakan MediaMTX untuk preview atau distribusi internal.
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400">HLS Port</label>
-                  <input 
-                    type="number" 
-                    name="hls_port"
-                    value={settings.hls_port} 
-                    onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all" 
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="space-y-2 md:col-span-1">
+                    <label className="text-sm font-medium text-slate-400">MediaMTX Host</label>
+                    <input 
+                      type="text" 
+                      name="mediamtx_host"
+                      value={settings.mediamtx_host} 
+                      onChange={handleChange}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all font-mono text-sm" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">RTMP Port</label>
+                    <input 
+                      type="number" 
+                      name="rtmp_port"
+                      value={settings.rtmp_port} 
+                      onChange={handleChange}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">HLS Port</label>
+                    <input 
+                      type="number" 
+                      name="hls_port"
+                      value={settings.hls_port} 
+                      onChange={handleChange}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all" 
+                    />
+                  </div>
                 </div>
               </div>
             </div>

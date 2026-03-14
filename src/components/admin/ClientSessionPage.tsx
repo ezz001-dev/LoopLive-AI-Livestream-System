@@ -271,7 +271,9 @@ URL: ${url}`);
                 <div className="flex flex-col items-center animate-pulse">
                    <Activity size={48} className="text-red-500/50" />
                    <p className="mt-4 text-sm font-medium">Stream is Active</p>
-                   <p className="text-xs">Live monitoring unavailable in placeholder</p>
+                   <p className="text-xs text-center max-w-xs">
+                     Untuk workflow direct YouTube/TikTok, monitoring utama tetap dilakukan dari dashboard platform.
+                   </p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
@@ -305,6 +307,14 @@ URL: ${url}`);
                   <div>
                      <label className="text-slate-500 block">Source Content</label>
                      <span className="text-slate-200 truncate block font-medium">{sessionData.video?.filename || 'N/A'}</span>
+                  </div>
+                  <div className="col-span-2">
+                     <label className="text-slate-500 block">Platform Destination</label>
+                     <p className="text-slate-300 mt-1 text-xs leading-relaxed">
+                       {sessionData.target_rtmp_url
+                         ? `${sessionData.target_rtmp_url}${sessionData.stream_key ? " + stream key configured" : ""}`
+                         : "No external RTMP set. Session will fallback to internal MediaMTX relay."}
+                     </p>
                   </div>
                   <div className="col-span-2">
                      <label className="text-slate-500 block">AI Context / Knowledge</label>
@@ -428,7 +438,7 @@ URL: ${url}`);
               </div>
               <Link href={`/live/${sessionData.id}`} target="_blank" className="mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700">
                  <span className="flex items-center justify-center gap-2 w-full">
-                   Open Public View
+                   Open Internal Preview
                    <ExternalLink size={14} />
                  </span>
               </Link>
