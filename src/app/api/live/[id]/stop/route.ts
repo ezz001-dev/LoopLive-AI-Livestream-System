@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
+import { clearAudioQueue } from "@/lib/audio-event-manager";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export async function POST(
 
     // Stop FFmpeg Loop Worker
     workerManager.stop(id);
+    await clearAudioQueue(id);
 
     // Stop YouTube Chat Poller via Redis
     await redisPub.publish("youtube_poll_control", JSON.stringify({

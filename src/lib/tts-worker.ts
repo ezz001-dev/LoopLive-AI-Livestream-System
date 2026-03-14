@@ -2,6 +2,7 @@ import Redis from "ioredis";
 import { OpenAI } from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "./prisma";
+import { enqueueAudioEvent } from "./audio-event-manager";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
@@ -178,6 +179,16 @@ async function startWorker() {
                 audioUrl: relativeAudioUrl,
                 text
             }));
+
+            const { queueLength } = await enqueueAudioEvent({
+                liveId,
+                type: "tts",
+                audioPath: relativeAudioUrl,
+                metadata: {
+                    replyId,
+                },
+            });
+            console.log(`[TTS-Worker] Queued TTS audio for ${liveId} (queue=${queueLength})`);
 
         } catch (error: any) {
             console.error("[TTS-Worker] Error processing TTS event:", error.message);

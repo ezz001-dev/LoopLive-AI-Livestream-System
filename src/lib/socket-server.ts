@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import { createServer } from "http";
 import Redis from "ioredis";
 import { prisma } from "./prisma";
+import { enqueueAudioEvent } from "./audio-event-manager";
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -145,11 +146,30 @@ async function checkAndTriggerSound(liveId: string, type: "keyword" | "join", te
         // Play automatically on join
         console.log(`[SocketServer][SOUND-DEBUG] Triggering join sound: ${event.audio_url}`);
         io.to(liveId).emit("play_sound", { audioUrl: event.audio_url });
+        const { queueLength } = await enqueueAudioEvent({
+          liveId,
+          type: "sound",
+          audioPath: event.audio_url,
+          metadata: {
+            trigger: "join",
+          },
+        });
+        console.log(`[SocketServer][SOUND-DEBUG] Join sound queued for ${liveId} (queue=${queueLength})`);
       } else if (type === "keyword" && event.keyword && text?.toLowerCase().includes(event.keyword.toLowerCase())) {
         // Play if keyword matches
         console.log(`[SocketServer] Keyword match: "${event.keyword}" -> Playing ${event.audio_url}`);
         console.log(`[SocketServer][SOUND-DEBUG] Emitting play_sound for keyword "${event.keyword}" in room ${liveId}`);
         io.to(liveId).emit("play_sound", { audioUrl: event.audio_url });
+        const { queueLength } = await enqueueAudioEvent({
+          liveId,
+          type: "sound",
+          audioPath: event.audio_url,
+          metadata: {
+            trigger: "keyword",
+            keyword: event.keyword,
+          },
+        });
+        console.log(`[SocketServer][SOUND-DEBUG] Keyword sound queued for ${liveId} (queue=${queueLength})`);
         break; // Only play one sound per message to avoid spam
       } else if (type === "keyword") {
         console.log(`[SocketServer][SOUND-DEBUG] No match for keyword "${event.keyword}" against text "${text || ""}"`);
