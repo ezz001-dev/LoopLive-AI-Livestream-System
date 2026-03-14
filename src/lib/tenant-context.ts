@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getAuthSession } from "@/lib/auth-session";
 
 const DEFAULT_TENANT_SLUG = process.env.SAAS_DEFAULT_TENANT_SLUG || "default-workspace";
 
@@ -11,6 +12,22 @@ type TenantContext = {
 let cachedTenantContext: TenantContext | null = null;
 
 export async function getCurrentTenantContext(): Promise<TenantContext> {
+  const authSession = await getAuthSession();
+  if (authSession?.tenantId) {
+    const tenantFromAuth = await (prisma as any).tenants.findUnique({
+      where: { id: authSession.tenantId },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+      },
+    });
+
+    if (tenantFromAuth) {
+      return tenantFromAuth;
+    }
+  }
+
   if (cachedTenantContext) {
     return cachedTenantContext;
   }

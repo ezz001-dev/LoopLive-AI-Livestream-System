@@ -6,6 +6,8 @@ export type AuthBridgeUser = {
   email: string;
   role: "admin";
   authSource: "users" | "admin_users";
+  tenantId: string;
+  tenantRole: string;
 };
 
 export function hashPassword(password: string) {
@@ -14,6 +16,55 @@ export function hashPassword(password: string) {
 
 function getDefaultDisplayName(email: string) {
   return email.split("@")[0] || "User";
+}
+
+async function getOrCreateDefaultTenant() {
+  const defaultTenantSlug = process.env.SAAS_DEFAULT_TENANT_SLUG || "default-workspace";
+
+  const existingTenant = await (prisma as any).tenants.findUnique({
+    where: { slug: defaultTenantSlug },
+  });
+
+  if (existingTenant) {
+    return existingTenant;
+  }
+
+  return (prisma as any).tenants.create({
+    data: {
+      name: "Default Workspace",
+      slug: defaultTenantSlug,
+      status: "active",
+    },
+  });
+}
+
+async function ensureTenantMembership(userId: string) {
+  const defaultTenant = await getOrCreateDefaultTenant();
+
+  const existingMembership = await (prisma as any).tenant_users.findFirst({
+    where: { user_id: userId },
+    orderBy: { created_at: "asc" },
+  });
+
+  if (existingMembership) {
+    return {
+      tenantId: existingMembership.tenant_id,
+      tenantRole: existingMembership.role || "owner",
+    };
+  }
+
+  const newMembership = await (prisma as any).tenant_users.create({
+    data: {
+      tenant_id: defaultTenant.id,
+      user_id: userId,
+      role: "owner",
+    },
+  });
+
+  return {
+    tenantId: newMembership.tenant_id,
+    tenantRole: newMembership.role,
+  };
 }
 
 async function syncLegacyAdminToUsers(legacyAdmin: { email: string; password: string }) {
@@ -43,11 +94,14 @@ export async function authenticateWithBridge(email: string, password: string): P
   });
 
   if (tenantFacingUser && tenantFacingUser.password_hash === hashedPassword) {
+    const membership = await ensureTenantMembership(tenantFacingUser.id);
     return {
       id: tenantFacingUser.id,
       email: tenantFacingUser.email,
       role: "admin",
       authSource: "users",
+      tenantId: membership.tenantId,
+      tenantRole: membership.tenantRole,
     };
   }
 
@@ -65,11 +119,14 @@ export async function authenticateWithBridge(email: string, password: string): P
   }
 
   const bridgedUser = await syncLegacyAdminToUsers(legacyAdmin);
+  const membership = await ensureTenantMembership(bridgedUser.id);
 
   return {
     id: bridgedUser.id,
     email: bridgedUser.email,
     role: "admin",
     authSource: "admin_users",
+    tenantId: membership.tenantId,
+    tenantRole: membership.tenantRole,
   };
 }

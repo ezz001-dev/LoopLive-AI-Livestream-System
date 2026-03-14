@@ -26,6 +26,8 @@ export async function POST(req: Request) {
       email: user.email,
       role: user.role,
       authSource: user.authSource,
+      tenantId: user.tenantId,
+      tenantRole: user.tenantRole,
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()
