@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getTenantScopedLiveSession } from "@/lib/tenant-context";
 
 // PATCH /api/live/[id]/schedule/[scheduleId] - Update a schedule
 export async function PATCH(
@@ -15,6 +16,14 @@ export async function PATCH(
 ) {
   try {
     const { id: sessionId, scheduleId } = await params;
+
+    const session = await getTenantScopedLiveSession(sessionId, { select: { id: true } });
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found" },
+        { status: 404 }
+      );
+    }
 
     // Verify schedule exists and belongs to session
     const existingSchedule = await prisma.session_schedules.findFirst({
@@ -140,6 +149,14 @@ export async function DELETE(
 ) {
   try {
     const { id: sessionId, scheduleId } = await params;
+
+    const session = await getTenantScopedLiveSession(sessionId, { select: { id: true } });
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found" },
+        { status: 404 }
+      );
+    }
 
     // Verify schedule exists and belongs to session
     const existingSchedule = await prisma.session_schedules.findFirst({

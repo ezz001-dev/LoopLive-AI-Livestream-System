@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
 import { getYouTubeLiveVideoId } from "@/lib/youtube-detect";
 import { resolveVideoInputSource } from "@/lib/storage";
+import { getTenantScopedLiveSession } from "@/lib/tenant-context";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +22,7 @@ export async function POST(
         const redisUrl = settings?.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
         const redisPub = new Redis(redisUrl);
 
-        const session = await prisma.live_sessions.findUnique({
-            where: { id },
+        const session = await getTenantScopedLiveSession(id, {
             include: { video: true }
         });
 

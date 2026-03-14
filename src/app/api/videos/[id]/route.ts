@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { deleteStoredVideoAsset } from "@/lib/storage";
+import { getTenantScopedVideo } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -12,8 +13,7 @@ export async function DELETE(
   try {
     const id = (await params).id;
 
-    const video = await prisma.videos.findUnique({
-      where: { id },
+    const video = await getTenantScopedVideo(id, {
       include: {
         sessions: {
           select: { id: true, title: true, status: true },

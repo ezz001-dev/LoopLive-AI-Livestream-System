@@ -47,3 +47,42 @@ export async function getCurrentTenantId() {
   const tenant = await getCurrentTenantContext();
   return tenant.id;
 }
+
+export async function getTenantScopedLiveSession(
+  liveSessionId: string,
+  options?: Record<string, unknown>
+) {
+  const tenantId = await getCurrentTenantId();
+
+  return (prisma.live_sessions as any).findFirst({
+    where: {
+      id: liveSessionId,
+      tenant_id: tenantId,
+    },
+    ...(options || {}),
+  });
+}
+
+export async function getTenantScopedVideo(
+  videoId: string,
+  options?: Record<string, unknown>
+) {
+  const tenantId = await getCurrentTenantId();
+
+  return (prisma.videos as any).findFirst({
+    where: {
+      id: videoId,
+      tenant_id: tenantId,
+    },
+    ...(options || {}),
+  });
+}
+
+export async function getLiveSessionTenantId(liveSessionId: string) {
+  const session = await (prisma.live_sessions as any).findUnique({
+    where: { id: liveSessionId },
+    select: { tenant_id: true },
+  });
+
+  return session?.tenant_id || null;
+}

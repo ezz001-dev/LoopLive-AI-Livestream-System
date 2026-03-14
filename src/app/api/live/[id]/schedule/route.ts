@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getTenantScopedLiveSession } from "@/lib/tenant-context";
 
 // GET /api/live/[id]/schedule - Get all schedules for a session
 export async function GET(
@@ -17,9 +18,7 @@ export async function GET(
     const { id: sessionId } = await params;
 
     // Verify session exists
-    const session = await prisma.live_sessions.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await getTenantScopedLiveSession(sessionId);
 
     if (!session) {
       return NextResponse.json(
@@ -61,9 +60,7 @@ export async function POST(
     const { id: sessionId } = await params;
 
     // Verify session exists
-    const session = await prisma.live_sessions.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await getTenantScopedLiveSession(sessionId);
 
     if (!session) {
       return NextResponse.json(

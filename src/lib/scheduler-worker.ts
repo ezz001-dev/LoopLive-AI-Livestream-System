@@ -13,6 +13,7 @@
  */
 
 import { prisma } from "./prisma";
+import { getCurrentTenantId } from "./tenant-context";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -161,10 +162,12 @@ async function executeAction(sessionId: string, action: 'start' | 'stop') {
 async function checkNewSchedules() {
     try {
         const now = new Date();
+        const tenantId = await getCurrentTenantId();
         
         // Get all sessions that have at least one schedule in the new table
-        const sessionsWithSchedules = await prisma.live_sessions.findMany({
+        const sessionsWithSchedules = await (prisma.live_sessions as any).findMany({
             where: {
+                tenant_id: tenantId,
                 schedule_enabled: true
             },
             include: {
@@ -212,10 +215,12 @@ async function checkNewSchedules() {
 async function checkLegacySchedules() {
     try {
         const now = new Date();
+        const tenantId = await getCurrentTenantId();
         
         // Get sessions with legacy schedule fields enabled
-        const legacySessions = await prisma.live_sessions.findMany({
+        const legacySessions = await (prisma.live_sessions as any).findMany({
             where: {
+                tenant_id: tenantId,
                 schedule_enabled: true,
             }
         });

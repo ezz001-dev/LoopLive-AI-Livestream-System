@@ -2,6 +2,7 @@ import Redis from "ioredis";
 import { OpenAI } from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "./prisma";
+import { getLiveSessionTenantId } from "./tenant-context";
 import * as dotenv from "dotenv";
 import axios from "axios";
 
@@ -29,7 +30,7 @@ async function getSystemSettings() {
 
 // Simple Context Fetcher
 async function getLiveSessionContext(liveId: string) {
-    const session = await prisma.live_sessions.findUnique({
+    const session = await (prisma.live_sessions as any).findUnique({
         where: { id: liveId },
         include: {
             chat_logs: {
@@ -41,12 +42,16 @@ async function getLiveSessionContext(liveId: string) {
     return session;
 }
 
-async function shouldSkipTtsForMessage(viewerMessage: string) {
+async function shouldSkipTtsForMessage(liveId: string, viewerMessage: string) {
     const normalizedMessage = viewerMessage.trim().toLowerCase();
     if (!normalizedMessage) return false;
 
-    const soundEvents = await prisma.sound_events.findMany({
+    const tenantId = await getLiveSessionTenantId(liveId);
+    if (!tenantId) return false;
+
+    const soundEvents = await (prisma.sound_events as any).findMany({
         where: {
+            tenant_id: tenantId,
             event_type: "keyword",
             active: true,
         },
@@ -57,7 +62,7 @@ async function shouldSkipTtsForMessage(viewerMessage: string) {
         }
     });
 
-    const matchedEvent = soundEvents.find((event) =>
+    const matchedEvent = soundEvents.find((event: any) =>
         event.keyword && normalizedMessage.includes(event.keyword.toLowerCase())
     );
 
@@ -187,7 +192,7 @@ async function startWorker() {
                 createdAt: aiReply.created_at
             }));
 
-            const skipTts = await shouldSkipTtsForMessage(viewerMessage);
+            const skipTts = await shouldSkipTtsForMessage(liveId, viewerMessage);
 
             if (skipTts) {
                 console.log(`[AI-Worker][TTS-SKIP] TTS suppressed for reply ${aiReply.id} in session ${liveId}`);

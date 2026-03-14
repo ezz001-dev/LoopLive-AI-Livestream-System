@@ -3,6 +3,7 @@ import { createServer } from "http";
 import Redis from "ioredis";
 import { prisma } from "./prisma";
 import { enqueueAudioEvent } from "./audio-event-manager";
+import { getLiveSessionTenantId } from "./tenant-context";
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -133,10 +134,16 @@ startServer();
 async function checkAndTriggerSound(liveId: string, type: "keyword" | "join", text?: string) {
   try {
     console.log(`[SocketServer][SOUND-DEBUG] Checking sound events for liveId=${liveId}, type=${type}, text="${text || ""}"`);
+    const tenantId = await getLiveSessionTenantId(liveId);
+
+    if (!tenantId) {
+      console.warn(`[SocketServer][SOUND-DEBUG] No tenant found for live session ${liveId}`);
+      return;
+    }
 
     // @ts-ignore - Prisma might need generation refresh
     const soundEvents = await (prisma as any).sound_events.findMany({
-      where: { event_type: type, active: true }
+      where: { tenant_id: tenantId, event_type: type, active: true }
     });
 
     console.log(`[SocketServer][SOUND-DEBUG] Active sound events found: ${soundEvents.length}`);

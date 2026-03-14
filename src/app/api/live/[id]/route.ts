@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getTenantScopedLiveSession } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -13,8 +14,7 @@ export async function GET(
   try {
     const id = (await params).id;
 
-    const session = await prisma.live_sessions.findUnique({
-        where: { id: id },
+    const session = await getTenantScopedLiveSession(id, {
         select: {
             status: true,
             viewer_count: true
@@ -45,8 +45,16 @@ export async function DELETE(
 
     // Optional: Stop worker if running?
     // For now just delete from DB. Cascade will handle logs.
+    const existingSession = await getTenantScopedLiveSession(id, {
+      select: { id: true },
+    });
+
+    if (!existingSession) {
+      return NextResponse.json({ error: "Live session not found" }, { status: 404 });
+    }
+
     await prisma.live_sessions.delete({
-        where: { id: id }
+        where: { id: existingSession.id }
     });
 
     return NextResponse.json({ success: true });
@@ -125,8 +133,16 @@ export async function PATCH(
         return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
-    const session = await prisma.live_sessions.update({
-        where: { id: id },
+    const existingSession = await getTenantScopedLiveSession(id, {
+      select: { id: true },
+    });
+
+    if (!existingSession) {
+      return NextResponse.json({ error: "Live session not found" }, { status: 404 });
+    }
+
+    const session = await (prisma.live_sessions as any).update({
+        where: { id: existingSession.id },
         data: updateData
     });
 

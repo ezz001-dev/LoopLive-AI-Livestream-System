@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getTenantScopedLiveSession } from "@/lib/tenant-context";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +45,7 @@ export async function PATCH(
             }
         }
 
-        const session = await prisma.live_sessions.findUnique({ where: { id } });
+        const session = await getTenantScopedLiveSession(id);
 
         if (!session) {
             return NextResponse.json({ error: "Live session not found" }, { status: 404 });
