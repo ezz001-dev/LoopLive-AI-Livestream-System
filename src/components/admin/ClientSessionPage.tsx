@@ -35,6 +35,8 @@ interface SessionData {
   youtube_channel_id: string | null;
   target_rtmp_url: string | null;
   stream_key: string | null;
+  loop_mode?: string | null;
+  loop_count?: number | null;
   context_text: string | null;
   ai_tone: string;
   // Schedule fields
@@ -297,6 +299,8 @@ URL: ${url}`);
             youtube_channel_id: sessionData.youtube_channel_id,
             target_rtmp_url: sessionData.target_rtmp_url,
             stream_key: sessionData.stream_key,
+            loop_mode: sessionData.loop_mode || "infinite",
+            loop_count: sessionData.loop_count || null,
             context_text: sessionData.context_text,
             ai_tone: sessionData.ai_tone,
             // Schedule fields
@@ -402,6 +406,14 @@ URL: ${url}`);
                        {sessionData.target_rtmp_url
                          ? `${sessionData.target_rtmp_url}${sessionData.stream_key ? " + stream key configured" : ""}`
                          : "Belum ada RTMP eksternal. Sesi akan memakai relay internal MediaMTX."}
+                     </p>
+                  </div>
+                  <div className="col-span-2">
+                     <label className="text-slate-500 block">Mode Loop Video</label>
+                     <p className="text-slate-300 mt-1 text-xs leading-relaxed">
+                       {sessionData.loop_mode === "count"
+                         ? `Diputar total ${sessionData.loop_count || 1} kali`
+                         : "Loop tanpa batas"}
                      </p>
                   </div>
                   <div className="col-span-2">

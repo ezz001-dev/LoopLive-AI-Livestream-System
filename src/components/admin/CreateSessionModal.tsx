@@ -36,6 +36,8 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
     youtube_video_id: "",
     target_rtmp_url: "",
     stream_key: "",
+    loop_mode: "infinite",
+    loop_count: "1",
   });
   const [error, setError] = useState("");
 
@@ -83,6 +85,14 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
       return;
     }
 
+    if (formData.loop_mode === "count") {
+      const parsedLoopCount = Number(formData.loop_count);
+      if (!Number.isInteger(parsedLoopCount) || parsedLoopCount <= 0) {
+        setError("Jumlah loop harus berupa angka lebih besar dari 0.");
+        return;
+      }
+    }
+
     setLoading(true);
     setError("");
 
@@ -90,7 +100,10 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
       const res = await fetch("/api/live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          loop_count: formData.loop_mode === "count" ? Number(formData.loop_count) : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create session");
@@ -252,6 +265,55 @@ export default function CreateSessionModal({ onClose }: CreateSessionModalProps)
                 Kosongkan jika ingin sistem auto-detect dari handle YouTube di Settings. Field ini hanya untuk chat polling.
               </p>
             </div>
+          </div>
+
+          <div className="h-px bg-slate-800 my-2" />
+
+          <div className="space-y-4">
+            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Mode Loop Video</h4>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData((p) => ({ ...p, loop_mode: "infinite" }))}
+                className={`px-4 py-3 rounded-2xl text-sm font-medium text-left transition-all ${
+                  formData.loop_mode === "infinite"
+                    ? "bg-cyan-600/20 border border-cyan-500/40 text-cyan-300"
+                    : "bg-slate-800 border border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-700"
+                }`}
+              >
+                Loop tanpa batas
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData((p) => ({ ...p, loop_mode: "count" }))}
+                className={`px-4 py-3 rounded-2xl text-sm font-medium text-left transition-all ${
+                  formData.loop_mode === "count"
+                    ? "bg-cyan-600/20 border border-cyan-500/40 text-cyan-300"
+                    : "bg-slate-800 border border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-700"
+                }`}
+              >
+                Loop berdasarkan jumlah
+              </button>
+            </div>
+
+            {formData.loop_mode === "count" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-400">Total Pemutaran</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={formData.loop_count}
+                  onChange={(e) => setFormData((p) => ({ ...p, loop_count: e.target.value }))}
+                  placeholder="Contoh: 2"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-white focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600"
+                />
+                <p className="text-[10px] text-slate-500 px-1">
+                  Nilai `2` berarti video diputar total 2 kali, bukan 2 kali tambahan.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="h-px bg-slate-800 my-2" />

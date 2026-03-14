@@ -17,6 +17,8 @@ type ManagedSession = {
   liveId: string;
   videoInput: string;
   streamUrl: string;
+  loopMode: "infinite" | "count";
+  loopCount: number | null;
   sourceHasAudio: boolean | null;
   manualStop: boolean;
   intentionalRespawn: boolean;
@@ -235,7 +237,12 @@ class WorkerManager {
    * @param videoInput The local file path or remote URL for FFmpeg input.
    * @param streamUrl The RTMP ingestion URL for a platform destination or internal relay.
    */
-  public start(liveId: string, videoInput: string, streamUrl: string) {
+  public start(
+    liveId: string,
+    videoInput: string,
+    streamUrl: string,
+    loopOptions?: { loopMode?: "infinite" | "count"; loopCount?: number | null }
+  ) {
     const existing = this.sessions.get(liveId);
     if (existing?.process) {
       console.warn(`[WorkerManager] Session ${liveId} is already running.`);
@@ -251,6 +258,11 @@ class WorkerManager {
       liveId,
       videoInput,
       streamUrl,
+      loopMode: loopOptions?.loopMode === "count" ? "count" : "infinite",
+      loopCount:
+        loopOptions?.loopMode === "count" && Number.isInteger(loopOptions.loopCount) && Number(loopOptions.loopCount) > 0
+          ? Number(loopOptions.loopCount)
+          : null,
       sourceHasAudio: null,
       manualStop: false,
       intentionalRespawn: false,
@@ -265,6 +277,11 @@ class WorkerManager {
 
     session.videoInput = videoInput;
     session.streamUrl = streamUrl;
+    session.loopMode = loopOptions?.loopMode === "count" ? "count" : "infinite";
+    session.loopCount =
+      session.loopMode === "count" && Number.isInteger(loopOptions?.loopCount) && Number(loopOptions?.loopCount) > 0
+        ? Number(loopOptions?.loopCount)
+        : null;
     session.sourceHasAudio = null;
     session.manualStop = false;
     session.intentionalRespawn = false;
@@ -358,7 +375,9 @@ class WorkerManager {
     }
 
     console.log(
-      `[WorkerManager] Starting stream for ${session.liveId} using ${session.videoInput}${
+      `[WorkerManager] Starting stream for ${session.liveId} using ${session.videoInput} [loop=${session.loopMode}${
+        session.loopMode === "count" ? `:${session.loopCount}` : ""
+      }]${
         session.currentAudioBatch
           ? ` + audio batch ${session.currentAudioBatch.inputPath} (${session.currentAudioBatch.sourceEvents.length} event)`
           : ""
@@ -378,12 +397,15 @@ class WorkerManager {
         ]
       : [];
 
-    const ffmpegArgs = [
-      ...inputArgs,
-      "-re",
-      "-stream_loop", "-1",
-      "-i", session.videoInput,
-    ];
+    const ffmpegArgs = [...inputArgs, "-re"];
+
+    if (session.loopMode === "infinite") {
+      ffmpegArgs.push("-stream_loop", "-1");
+    } else if (session.loopMode === "count" && session.loopCount && session.loopCount > 1) {
+      ffmpegArgs.push("-stream_loop", String(session.loopCount - 1));
+    }
+
+    ffmpegArgs.push("-i", session.videoInput);
 
     if (session.currentAudioBatch) {
       if (session.currentAudioBatch.mode === "concat") {

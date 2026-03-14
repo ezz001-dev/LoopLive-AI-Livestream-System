@@ -11,6 +11,8 @@ interface EditSessionModalProps {
     youtube_channel_id: string | null;
     target_rtmp_url: string | null;
     stream_key: string | null;
+    loop_mode?: string | null;
+    loop_count?: number | null;
     context_text: string | null;
     ai_tone: string;
     // Schedule fields
@@ -194,6 +196,15 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
       if (submitData.schedule_repeat_end instanceof Date) {
         submitData.schedule_repeat_end = submitData.schedule_repeat_end.toISOString();
       }
+      if (submitData.loop_mode !== "count") {
+        submitData.loop_count = null;
+      } else {
+        const parsedLoopCount = Number(submitData.loop_count);
+        if (!Number.isInteger(parsedLoopCount) || parsedLoopCount <= 0) {
+          throw new Error("Loop count harus berupa angka lebih besar dari 0.");
+        }
+        submitData.loop_count = parsedLoopCount;
+      }
       // Convert schedule_days from JSON string to array for API
       if (submitData.schedule_days && typeof submitData.schedule_days === 'string') {
         try {
@@ -352,6 +363,63 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                 className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:outline-none transition-colors text-sm font-mono"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+              Video Loop Mode
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, loop_mode: "infinite", loop_count: null })}
+                className={`p-3 rounded-xl border text-sm font-medium transition-all ${
+                  (formData.loop_mode || "infinite") === "infinite"
+                    ? "border-blue-500 bg-blue-500/20 text-white"
+                    : "border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600"
+                }`}
+              >
+                Infinite
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData({
+                    ...formData,
+                    loop_mode: "count",
+                    loop_count: formData.loop_count && formData.loop_count > 0 ? formData.loop_count : 2,
+                  })
+                }
+                className={`p-3 rounded-xl border text-sm font-medium transition-all ${
+                  formData.loop_mode === "count"
+                    ? "border-blue-500 bg-blue-500/20 text-white"
+                    : "border-slate-700 bg-slate-950 text-slate-400 hover:border-slate-600"
+                }`}
+              >
+                Berdasarkan Jumlah
+              </button>
+            </div>
+            {formData.loop_mode === "count" && (
+              <div className="mt-3">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={formData.loop_count || 1}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      loop_count: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:outline-none transition-colors text-sm"
+                  placeholder="Contoh: 2"
+                />
+                <p className="text-slate-500 text-xs mt-2">
+                  Nilai 2 berarti video diputar total 2 kali.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>

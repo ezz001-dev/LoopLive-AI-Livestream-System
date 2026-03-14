@@ -66,7 +66,12 @@ export async function POST(
         }
 
         try {
-            workerManager.start(id, videoSource.input, rtmpUrl);
+            const loopMode = (session as any).loop_mode === "count" ? "count" : "infinite";
+            const loopCount = loopMode === "count" ? (session as any).loop_count : null;
+            workerManager.start(id, videoSource.input, rtmpUrl, {
+                loopMode,
+                loopCount,
+            });
         } catch (err: any) {
             console.error("[WorkerManager] Failed to start:", err);
 

@@ -36,6 +36,8 @@ model live_sessions {
   youtube_channel_id  String?         // Optional: YouTube Channel ID
   target_rtmp_url     String?         // External RTMP Server URL (e.g. rtmp://a.rtmp.youtube.com/live2)
   stream_key          String?         // External Stream Key
+  loop_mode           String          @default("infinite") // "infinite" | "count"
+  loop_count          Int?            // Total playback count when loop_mode = "count"
   
   // Schedule Configuration
   schedule_enabled        Boolean        @default(false)

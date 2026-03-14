@@ -72,6 +72,8 @@ export async function PATCH(
         "youtube_channel_id", 
         "target_rtmp_url",
         "stream_key",
+        "loop_mode",
+        "loop_count",
         "context_text",
         "ai_tone",
         // Schedule fields
@@ -98,10 +100,25 @@ export async function PATCH(
             else if (["schedule_start_at", "schedule_end_at", "schedule_repeat_end"].includes(key)) {
                 updateData[key] = body[key] ? new Date(body[key]) : null;
             }
+            else if (key === "loop_mode") {
+                updateData[key] = body[key] === "count" ? "count" : "infinite";
+            }
+            else if (key === "loop_count") {
+                const parsed = Number(body[key]);
+                updateData[key] = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+            }
             else {
                 updateData[key] = body[key];
             }
         }
+    }
+
+    if (updateData.loop_mode === "count" && !updateData.loop_count && body.loop_count !== undefined) {
+        return NextResponse.json({ error: "Loop count harus lebih besar dari 0 saat mode count dipakai" }, { status: 400 });
+    }
+
+    if (updateData.loop_mode === "infinite") {
+        updateData.loop_count = null;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -122,6 +139,8 @@ export async function PATCH(
             youtube_channel_id: session.youtube_channel_id,
             target_rtmp_url: session.target_rtmp_url,
             stream_key: session.stream_key,
+            loop_mode: (session as any).loop_mode,
+            loop_count: (session as any).loop_count,
             context_text: session.context_text,
             ai_tone: session.ai_tone,
             status: session.status
@@ -133,4 +152,3 @@ export async function PATCH(
     return NextResponse.json({ error: `Failed to update session: ${error.message}` }, { status: 500 });
   }
 }
-

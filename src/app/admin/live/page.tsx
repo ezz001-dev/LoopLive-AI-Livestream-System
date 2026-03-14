@@ -37,10 +37,36 @@ export default async function LiveSessionsPage() {
             {sessions.map((session) => (
               <tr key={session.id} className="hover:bg-slate-800/30 transition-colors group">
                 <td className="px-6 py-5">
-                  <Link href={`/admin/live/${session.id}`} className="font-bold text-white hover:text-blue-400 transition-colors text-lg">
-                    {session.title}
-                  </Link>
-                  <p className="text-xs text-slate-500 mt-1 truncate max-w-xs">{session.context_text}</p>
+                  {(() => {
+                    const loopMode = (session as any).loop_mode === "count" ? "count" : "infinite";
+                    const loopCount = Number((session as any).loop_count || 1);
+                    const loopLabel =
+                      loopMode === "count"
+                        ? loopCount === 1
+                          ? "Once"
+                          : `x${loopCount}`
+                        : "Infinite";
+                    const loopClasses =
+                      loopMode === "count"
+                        ? loopCount === 1
+                          ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                          : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
+                        : "border border-cyan-500/20 bg-cyan-500/10 text-cyan-300";
+
+                    return (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link href={`/admin/live/${session.id}`} className="font-bold text-white hover:text-blue-400 transition-colors text-lg">
+                        {session.title}
+                      </Link>
+                      <p className="text-xs text-slate-500 mt-1 truncate max-w-xs">{session.context_text}</p>
+                    </div>
+                    <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${loopClasses}`}>
+                      {loopLabel}
+                    </span>
+                  </div>
+                    );
+                  })()}
                 </td>
                 <td className="px-6 py-5">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
