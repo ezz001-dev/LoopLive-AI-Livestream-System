@@ -41,6 +41,36 @@ async function getLiveSessionContext(liveId: string) {
     return session;
 }
 
+async function shouldSkipTtsForMessage(viewerMessage: string) {
+    const normalizedMessage = viewerMessage.trim().toLowerCase();
+    if (!normalizedMessage) return false;
+
+    const soundEvents = await prisma.sound_events.findMany({
+        where: {
+            event_type: "keyword",
+            active: true,
+        },
+        select: {
+            id: true,
+            keyword: true,
+            audio_url: true,
+        }
+    });
+
+    const matchedEvent = soundEvents.find((event) =>
+        event.keyword && normalizedMessage.includes(event.keyword.toLowerCase())
+    );
+
+    if (matchedEvent) {
+        console.log(
+            `[AI-Worker][TTS-SKIP] Matched keyword sound "${matchedEvent.keyword}" -> skip TTS for message: "${viewerMessage}"`
+        );
+        return true;
+    }
+
+    return false;
+}
+
 async function generateReply(session: any, viewerMessage: string, viewerId: string) {
     const settings = await getSystemSettings();
     const provider = settings.ai_provider;
@@ -157,12 +187,18 @@ async function startWorker() {
                 createdAt: aiReply.created_at
             }));
 
-            // Trigger TTS
-            await redisPub.publish("ai_voice_play", JSON.stringify({
-                liveId,
-                text: replyText,
-                replyId: aiReply.id
-            }));
+            const skipTts = await shouldSkipTtsForMessage(viewerMessage);
+
+            if (skipTts) {
+                console.log(`[AI-Worker][TTS-SKIP] TTS suppressed for reply ${aiReply.id} in session ${liveId}`);
+            } else {
+                // Trigger TTS only when no keyword sound effect handled the interaction.
+                await redisPub.publish("ai_voice_play", JSON.stringify({
+                    liveId,
+                    text: replyText,
+                    replyId: aiReply.id
+                }));
+            }
 
         } catch (error: any) {
             console.error("[AI-Worker] Error processing chat event:", error.message);
