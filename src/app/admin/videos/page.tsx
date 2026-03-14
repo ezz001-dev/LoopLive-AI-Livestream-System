@@ -1,12 +1,22 @@
 import React from "react";
-import { Upload, FileVideo, Trash2, ExternalLink, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 import VideoLibraryHeader from "@/components/admin/VideoLibraryHeader";
+import VideoAssetCard from "@/components/admin/VideoAssetCard";
 
 export default async function VideosPage() {
   const videos = await prisma.videos.findMany({
-    orderBy: { created_at: "desc" }
+    orderBy: { created_at: "desc" },
+    select: {
+      id: true,
+      filename: true,
+      file_type: true,
+      file_path: true,
+      public_url: true,
+      storage_provider: true,
+      created_at: true,
+    },
   });
 
   return (
@@ -24,33 +34,7 @@ export default async function VideosPage() {
         </div>
 
         {(videos.map((video) => (
-          <div key={video.id} className="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden group hover:border-slate-700 transition-all">
-            <div className="aspect-video bg-slate-950 flex items-center justify-center text-slate-800 transition-colors group-hover:bg-slate-900 relative">
-               <FileVideo size={48} className="group-hover:text-slate-700 transition-colors" />
-               <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors" />
-            </div>
-            <div className="p-5">
-              <h3 className="font-bold text-white truncate text-lg">{video.filename}</h3>
-              <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider">{video.file_type}</p>
-              <p className="text-[10px] text-slate-600 mt-2 uppercase tracking-wider">
-                {(video as any).storage_provider || "local"}
-              </p>
-              
-              <div className="flex items-center justify-between mt-6">
-                <div className="flex gap-2">
-                   <button className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors" title="View Details">
-                      <ExternalLink size={16} />
-                   </button>
-                   <button className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors" title="Delete Video">
-                      <Trash2 size={16} />
-                   </button>
-                </div>
-                <span className="text-[10px] text-slate-600 font-mono">
-                  {new Date(video.created_at).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          </div>
+          <VideoAssetCard key={video.id} video={video} />
         )) as React.ReactNode)}
       </div>
 

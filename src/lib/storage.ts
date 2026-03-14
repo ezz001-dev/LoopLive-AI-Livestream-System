@@ -11,7 +11,7 @@ import {
   type StorageProvider,
 } from "@/lib/storage-config";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export type UploadedAsset = {
   id?: string;
@@ -224,6 +224,37 @@ export async function createSignedVideoReadUrl(storageKey: string) {
     }),
     { expiresIn: getR2SignedReadTtlSeconds() }
   );
+}
+
+export async function deleteStoredVideoAsset(video: {
+  file_path: string;
+  storage_key?: string | null;
+  storage_provider?: string | null;
+}) {
+  if (video.storage_provider === "r2" && video.storage_key) {
+    const env = assertR2Env();
+    const client = createR2Client();
+
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: env.bucketName,
+        Key: video.storage_key,
+      })
+    );
+    return;
+  }
+
+  const localPath = video.file_path.startsWith("/videos/")
+    ? path.join(process.cwd(), "public", video.file_path.replace(/^\/+/, ""))
+    : video.file_path;
+
+  try {
+    await fs.promises.unlink(localPath);
+  } catch (error: any) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
 }
 
 async function validateRemoteVideoInput(input: string) {
