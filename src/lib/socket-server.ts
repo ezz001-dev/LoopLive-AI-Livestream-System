@@ -50,6 +50,10 @@ async function startServer() {
         // Broadcast AI Text Reply
         console.log(`[SocketServer] 💬 Broadcasting chat to room ${liveId}`);
         io.to(liveId).emit("chat_broadcast", data);
+        if (data.source === "youtube" && typeof data.message === "string") {
+          console.log(`[SocketServer][YT-SOUND-DEBUG] Received YouTube chat for sound check in ${liveId}: "${data.message}"`);
+          void checkAndTriggerSound(liveId, "keyword", data.message);
+        }
       } else if (channel === "ai_audio_ready") {
         // Trigger AI Voice Playback on Frontend with Audio URL
         console.log(`[SocketServer] 🔉 Broadcasting voice play event to room ${liveId}: ${data.audioUrl}`);
@@ -127,20 +131,28 @@ startServer();
 // Sound Trigger Helper
 async function checkAndTriggerSound(liveId: string, type: "keyword" | "join", text?: string) {
   try {
+    console.log(`[SocketServer][SOUND-DEBUG] Checking sound events for liveId=${liveId}, type=${type}, text="${text || ""}"`);
+
     // @ts-ignore - Prisma might need generation refresh
     const soundEvents = await (prisma as any).sound_events.findMany({
       where: { event_type: type, active: true }
     });
 
+    console.log(`[SocketServer][SOUND-DEBUG] Active sound events found: ${soundEvents.length}`);
+
     for (const event of soundEvents) {
       if (type === "join") {
         // Play automatically on join
+        console.log(`[SocketServer][SOUND-DEBUG] Triggering join sound: ${event.audio_url}`);
         io.to(liveId).emit("play_sound", { audioUrl: event.audio_url });
       } else if (type === "keyword" && event.keyword && text?.toLowerCase().includes(event.keyword.toLowerCase())) {
         // Play if keyword matches
         console.log(`[SocketServer] Keyword match: "${event.keyword}" -> Playing ${event.audio_url}`);
+        console.log(`[SocketServer][SOUND-DEBUG] Emitting play_sound for keyword "${event.keyword}" in room ${liveId}`);
         io.to(liveId).emit("play_sound", { audioUrl: event.audio_url });
         break; // Only play one sound per message to avoid spam
+      } else if (type === "keyword") {
+        console.log(`[SocketServer][SOUND-DEBUG] No match for keyword "${event.keyword}" against text "${text || ""}"`);
       }
     }
   } catch (err) {

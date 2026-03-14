@@ -149,12 +149,13 @@ class WorkerManager {
 
     session.process = ffmpeg;
 
-    ffmpeg.stderr.on("data", (data) => {
-      const message = data.toString().trim();
-      if (message) {
-        console.error(`[FFmpeg ${session.liveId}] ${message}`);
-      }
-    });
+    // Temporarily disabled to keep YouTube comment and sound-effect debugging readable.
+    // ffmpeg.stderr.on("data", (data) => {
+    //   const message = data.toString().trim();
+    //   if (message) {
+    //     console.error(`[FFmpeg ${session.liveId}] ${message}`);
+    //   }
+    // });
 
     ffmpeg.on("error", (error) => {
       console.error(`[WorkerManager] FFmpeg process error for ${session.liveId}:`, error);
