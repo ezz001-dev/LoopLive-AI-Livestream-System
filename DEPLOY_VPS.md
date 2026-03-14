@@ -34,6 +34,10 @@ REDIS_URL="redis://localhost:6379"
 YT_CHANNEL_HANDLE="@namakanal" # Channel YouTube Anda
 ```
 
+Untuk panel admin yang diamankan dengan Cloudflare Zero Trust, lihat panduan:
+
+- [Cloudflare Zero Trust Admin Setup](/e:/PROJECT/Next-JS/LoopLive-AI-Livestream-System/docs/cloudflare-zero-trust-admin.md)
+
 ---
 
 ## Menjalankan Semua Service (1 Perintah)
@@ -103,7 +107,7 @@ Install Nginx dan buat config:
 # /etc/nginx/sites-available/looplive
 server {
     listen 80;
-    server_name yourdomain.com;
+    server_name admin.fluxo-ai.pro;
 
     # Next.js App
     location / {
@@ -113,16 +117,28 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cf-Access-Authenticated-User-Email $http_cf_access_authenticated_user_email;
     }
 
     # Socket.io (WebSocket)
     location /socket.io/ {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:3001/socket.io/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cf-Access-Authenticated-User-Email $http_cf_access_authenticated_user_email;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
     }
+
+    client_max_body_size 500M;
 }
 ```
 
@@ -131,6 +147,8 @@ server {
 ln -s /etc/nginx/sites-available/looplive /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
+
+Jika Anda memakai `Cloudflare Access`, request admin harus masuk melalui subdomain yang diproteksi, misalnya `admin.fluxo-ai.pro`, bukan lewat IP origin.
 
 ---
 

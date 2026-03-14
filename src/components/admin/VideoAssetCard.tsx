@@ -58,9 +58,26 @@ export default function VideoAssetCard({ video }: VideoAssetCardProps) {
 
   return (
     <div className="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden group hover:border-slate-700 transition-all">
-      <div className="aspect-video bg-slate-950 flex items-center justify-center text-slate-800 transition-colors group-hover:bg-slate-900 relative">
-        <FileVideo size={48} className="group-hover:text-slate-700 transition-colors" />
+      <div className="aspect-video bg-slate-950 flex items-center justify-center text-slate-800 transition-colors group-hover:bg-slate-900 relative overflow-hidden">
+        {previewUrl ? (
+          <>
+            <video
+              key={previewUrl}
+              src={previewUrl}
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
+          </>
+        ) : (
+          <FileVideo size={48} className="group-hover:text-slate-700 transition-colors" />
+        )}
         <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors" />
+        <div className="absolute left-3 top-3 rounded-full border border-white/10 bg-slate-950/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-300 backdrop-blur">
+          Preview
+        </div>
       </div>
       <div className="p-5">
         <h3 className="font-bold text-white truncate text-lg">{video.filename}</h3>

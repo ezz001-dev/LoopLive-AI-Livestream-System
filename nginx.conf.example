@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name your_domain.com; # Ganti dengan domain atau IP VPS Anda
+    server_name admin.fluxo-ai.pro; # Ganti dengan subdomain admin Anda
 
     # Next.js Frontend & API
     location / {
@@ -13,6 +13,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # Forward Cloudflare Access identity header for INTERNAL_ACCESS_MODE=proxy_header
+        proxy_set_header Cf-Access-Authenticated-User-Email $http_cf_access_authenticated_user_email;
     }
 
     # Socket.io WebSocket Support
@@ -25,6 +27,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Cf-Access-Authenticated-User-Email $http_cf_access_authenticated_user_email;
         
         # Timeout settings for WebSockets
         proxy_read_timeout 86400;

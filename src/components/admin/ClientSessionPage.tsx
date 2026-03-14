@@ -16,6 +16,9 @@ interface SessionData {
   status: string;
   video?: {
     filename: string;
+    file_path?: string | null;
+    public_url?: string | null;
+    storage_provider?: string | null;
   };
   chat_logs: Array<{
     id: string;
@@ -70,6 +73,7 @@ export default function ClientSessionPage({ session }: ClientSessionPageProps) {
   const audioEnabledRef = useRef(false);
   const lastAudioUrlRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const videoPreviewUrl = sessionData.video?.public_url || sessionData.video?.file_path || null;
 
   const playAudioWithRetry = async (audioUrl: string, retries = 5) => {
     if (!audioRef.current) return;
@@ -316,7 +320,22 @@ URL: ${url}`);
         <div className="lg:col-span-2 space-y-6">
            {/* Preview Placeholder */}
            <div className="aspect-video bg-slate-900 border border-slate-800 rounded-3xl flex flex-col items-center justify-center text-slate-600 group relative overflow-hidden">
-              {sessionData.status === 'LIVE' ? (
+              {videoPreviewUrl ? (
+                <>
+                  <video
+                    key={videoPreviewUrl}
+                    src={videoPreviewUrl}
+                    className="h-full w-full object-cover"
+                    muted
+                    autoPlay
+                    loop
+                    playsInline
+                    preload="metadata"
+                    controls={false}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
+                </>
+              ) : sessionData.status === 'LIVE' ? (
                 <div className="flex flex-col items-center animate-pulse">
                    <Activity size={48} className="text-red-500/50" />
                    <p className="mt-4 text-sm font-medium">Live Sedang Berjalan</p>
@@ -331,8 +350,28 @@ URL: ${url}`);
                 </div>
               )}
               <div className="absolute top-4 left-4 bg-slate-950/80 backdrop-blur px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest text-slate-400 border border-white/5">
-                Preview
+                {videoPreviewUrl ? "Source Preview" : "Preview"}
               </div>
+              {videoPreviewUrl && (
+                <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Video Source</p>
+                    <p className="mt-1 truncate text-sm font-medium text-white">
+                      {sessionData.video?.filename || "Untitled video"}
+                    </p>
+                    <p className="mt-1 text-[10px] uppercase tracking-widest text-slate-500">
+                      {sessionData.video?.storage_provider || "local"}
+                    </p>
+                  </div>
+                  <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                    sessionData.status === "LIVE"
+                      ? "border border-red-500/30 bg-red-500/15 text-red-300"
+                      : "border border-slate-700 bg-slate-950/80 text-slate-300"
+                  }`}>
+                    {sessionData.status === "LIVE" ? "Live Running" : "Ready"}
+                  </div>
+                </div>
+              )}
            </div>
 
            {/* Action Buttons */}
