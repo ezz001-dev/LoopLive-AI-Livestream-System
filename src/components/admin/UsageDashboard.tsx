@@ -47,9 +47,11 @@ export default function UsageDashboard() {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-pulse">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-32 bg-slate-800/50 rounded-3xl" />
-        ))}
+        <>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-slate-800/50 rounded-3xl" />
+          ))}
+        </>
         <div className="md:col-span-4 h-80 bg-slate-800/50 rounded-3xl" />
       </div>
     );
@@ -118,14 +120,20 @@ export default function UsageDashboard() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data?.stats || []}>
               <defs>
-                <linearGradient id="colorAi" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorTts" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#fb7185" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#fb7185" stopOpacity={0}/>
-                </linearGradient>
+                <>
+                  <linearGradient id="colorAi" x1="0" y1="0" x2="0" y2="1">
+                    <>
+                      <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                    </>
+                  </linearGradient>
+                  <linearGradient id="colorTts" x1="0" y1="0" x2="0" y2="1">
+                    <>
+                      <stop offset="5%" stopColor="#fb7185" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#fb7185" stopOpacity={0}/>
+                    </>
+                  </linearGradient>
+                </>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
               <XAxis 
