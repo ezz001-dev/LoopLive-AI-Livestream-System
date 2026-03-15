@@ -54,7 +54,24 @@ export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
     });
 
     const planCode = subscription?.plan_code || "free_trial";
-    return PLANS[planCode] || PLANS["free_trial"];
+    const baseLimits = { ...(PLANS[planCode] || PLANS["free_trial"]) };
+
+    // Apply dynamic trial overrides if applicable
+    if (planCode === "free_trial") {
+        try {
+            const settings = await (prisma as any).system_settings.findFirst();
+            if (settings) {
+                baseLimits.maxTeamMembers = settings.trial_max_users ?? baseLimits.maxTeamMembers;
+                baseLimits.maxStorageGB = settings.trial_max_storage_gb ?? baseLimits.maxStorageGB;
+                baseLimits.maxActiveStreams = settings.trial_max_active_streams ?? baseLimits.maxActiveStreams;
+                baseLimits.maxAiResponsesPerDay = settings.trial_max_ai_responses ?? baseLimits.maxAiResponsesPerDay;
+            }
+        } catch (error) {
+            console.error("Failed to load trial overrides from system_settings", error);
+        }
+    }
+
+    return baseLimits;
 }
 
 /**

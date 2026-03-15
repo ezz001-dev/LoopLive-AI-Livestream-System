@@ -2,6 +2,7 @@ import React from "react";
 import { prisma } from "@/lib/prisma";
 import TenantStatusActions from "@/components/ops/TenantStatusActions";
 import Link from "next/link";
+import PlatformConfig from "@/components/ops/PlatformConfig";
 
 export default async function OpsPage() {
   const [
@@ -75,6 +76,10 @@ export default async function OpsPage() {
         <p className="mt-2 max-w-3xl text-slate-400">
           Monitoring terpusat untuk aktivitas tenant, audit akses, dan metering penggunaan platform.
         </p>
+        
+        <div className="mt-8 pt-8 border-t border-slate-800">
+           <PlatformConfig />
+        </div>
       </section>
 
       {/* Quick Stats */}

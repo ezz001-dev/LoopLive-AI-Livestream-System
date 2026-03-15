@@ -211,6 +211,14 @@ model system_settings {
   yt_cookie             String?
   app_base_url          String   @default("http://localhost:3000")
   scheduler_api_key     String   @default("looplive-scheduler-internal-key")
+  
+  // Dynamic Trial Limits & Registration Controls
+  trial_max_users          Int      @default(1)
+  trial_max_storage_gb     Int      @default(2)
+  trial_max_active_streams Int      @default(1)
+  trial_max_ai_responses   Int      @default(10)
+  registration_limit       Int      @default(10)
+
   updated_at            DateTime @updatedAt
 }
 

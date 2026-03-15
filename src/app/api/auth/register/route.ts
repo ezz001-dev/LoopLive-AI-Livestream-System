@@ -15,6 +15,21 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "All fields are required" }, { status: 400 });
         }
 
+        // Check global registration limit
+        try {
+            const settings = await (prisma as any).system_settings.findFirst();
+            if (settings && settings.registration_limit > 0) {
+                const tenantCount = await (prisma as any).tenants.count();
+                if (tenantCount >= settings.registration_limit) {
+                    return NextResponse.json({ 
+                        error: "Batas pendaftaran pengguna baru untuk periode pilot ini telah tercapai. Silakan hubungi tim LoopLive untuk mendapatkan akses." 
+                    }, { status: 403 });
+                }
+            }
+        } catch (err) {
+            console.error("Failed to check registration limit", err);
+        }
+
         // 1. Check if user exists
         const existingUser = await (prisma as any).users.findUnique({ where: { email } });
         if (existingUser) {
