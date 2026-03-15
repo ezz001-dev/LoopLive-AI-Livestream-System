@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth-bridge";
+import { verifyOTP } from "@/lib/otp";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +10,16 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "default_s
 
 export async function POST(req: Request) {
     try {
-        const { email, password, name, workspaceName } = await req.json();
+        const { email, password, name, workspaceName, otp } = await req.json();
 
-        if (!email || !password || !name || !workspaceName) {
-            return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+        if (!email || !password || !name || !workspaceName || !otp) {
+            return NextResponse.json({ error: "All fields and OTP are required" }, { status: 400 });
+        }
+
+        // 0. Verify OTP
+        const isOtpValid = await verifyOTP(email, otp);
+        if (!isOtpValid) {
+            return NextResponse.json({ error: "Invalid or expired verification code" }, { status: 400 });
         }
 
         // Check global registration limit

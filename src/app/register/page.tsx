@@ -10,12 +10,52 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
+  const [otp, setOtp] = useState("");
+  const [showOtp, setShowOtp] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const router = useRouter();
+
+  const handleSendOTP = async () => {
+    if (!email) {
+      setError("Please enter your email address first");
+      return;
+    }
+    setSendingOtp(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch("/api/auth/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setShowOtp(true);
+        setOtpSent(true);
+        setSuccess("Verification code sent to your email!");
+      } else {
+        setError(data.error || "Failed to send code");
+      }
+    } catch (err) {
+      setError("Network error occurred");
+    } finally {
+      setSendingOtp(false);
+    }
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!otp) {
+      setError("Please enter the verification code");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -23,13 +63,13 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name, workspaceName }),
+        body: JSON.stringify({ email, password, name, workspaceName, otp }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        router.push("/admin");
+        router.push("/onboarding");
       } else {
         setError(data.error || "Registration failed. Please try again.");
       }
@@ -125,6 +165,13 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {success && (
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                <ShieldCheck size={18} className="shrink-0" />
+                <span>{success}</span>
+              </div>
+            )}
+
             {error && (
               <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                 <ShieldCheck size={18} className="shrink-0" />
@@ -132,22 +179,62 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full group relative overflow-hidden rounded-2xl py-4 bg-white text-slate-950 font-black uppercase tracking-widest text-xs shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50"
-            >
-              <div className="relative flex items-center justify-center gap-2">
-                {loading ? (
-                  <Loader2 className="animate-spin" size={18} />
-                ) : (
-                  <>
-                    <span>Create Account & Workspace</span>
-                    <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
+            {showOtp && (
+              <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                <label className="text-xs font-bold text-slate-500 uppercase ml-1 tracking-wider">Verification Code</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-4 flex items-center text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                    <ShieldCheck size={16} />
+                  </div>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="w-full bg-slate-950/50 border border-slate-800 rounded-2xl pl-11 pr-4 py-3.5 text-white focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-slate-700 text-sm tracking-[0.5em] font-mono"
+                    placeholder="123456"
+                    maxLength={6}
+                    required
+                  />
+                </div>
               </div>
-            </button>
+            )}
+
+            {!otpSent ? (
+              <button
+                type="button"
+                onClick={handleSendOTP}
+                disabled={sendingOtp || !email}
+                className="w-full group relative overflow-hidden rounded-2xl py-4 bg-slate-800 text-white font-bold uppercase tracking-widest text-[10px] shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 border border-slate-700"
+              >
+                <div className="relative flex items-center justify-center gap-2">
+                  {sendingOtp ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <>
+                      <span>Send Verification Code</span>
+                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </div>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full group relative overflow-hidden rounded-2xl py-4 bg-white text-slate-950 font-black uppercase tracking-widest text-xs shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                <div className="relative flex items-center justify-center gap-2">
+                  {loading ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <>
+                      <span>Verify & Create Account</span>
+                      <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </div>
+              </button>
+            )}
           </form>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500 font-medium">

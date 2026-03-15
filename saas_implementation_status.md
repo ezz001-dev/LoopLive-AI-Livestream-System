@@ -21,6 +21,8 @@ This report compares the current codebase against the planned SaaS Roadmap (`doc
 | **Worker Awareness** | ✅ Completed | All workers use tenant specific secrets and record usage. |
 | **Usage Metering** | ✅ Completed | `usage_records` table and `recordUsage` utility implemented. |
 | **Audit Logs** | ✅ Completed | `audit_logs` model and `logAudit` utility implemented. |
+| **BYOK (Phase 8)**| ✅ Completed | Zero-knowledge client-side AI/TTS key management. |
+| **Email OTP (Phase 9)**| ✅ Completed | Mandatory email verification during registration. |
 | **Health Monitoring** | ✅ Completed | Stream Heartbeat mechanism and proactive health status indicators. |
 
 ## Monetization & Self-Serve (Month 3) - **Status: Completed (Entitlements and Onboarding)**
