@@ -449,11 +449,11 @@ URL: ${url}`);
                       {sessionData.video?.storage_provider || "local"}
                     </p>
                   </div>
-                  <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest \${
+                  <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${
                     sessionData.status === "LIVE"
                       ? "border border-red-500/30 bg-red-500/15 text-red-300"
                       : "border border-slate-700 bg-slate-950/80 text-slate-300"
-                  }\`}>
+                  }`}>
                     {sessionData.status === "LIVE" ? "Live Running" : "Ready"}
                   </div>
                 </div>
@@ -486,7 +486,7 @@ URL: ${url}`);
                      <label className="text-slate-500 block">Platform Destination</label>
                      <p className="text-slate-300 mt-1 text-xs leading-relaxed">
                        {sessionData.target_rtmp_url
-                         ? `\${sessionData.target_rtmp_url}\${sessionData.stream_key ? " + stream key configured" : ""}`
+                         ? `${sessionData.target_rtmp_url}${sessionData.stream_key ? " + stream key configured" : ""}`
                          : "Belum ada RTMP eksternal. Sesi akan memakai relay internal MediaMTX."}
                      </p>
                   </div>
@@ -494,13 +494,13 @@ URL: ${url}`);
                      <label className="text-slate-500 block">Mode Loop Video</label>
                      <p className="text-slate-300 mt-1 text-xs leading-relaxed">
                        {sessionData.loop_mode === "count"
-                         ? `Diputar total \${sessionData.loop_count || 1} kali`
+                         ? `Diputar total ${sessionData.loop_count || 1} kali`
                          : "Loop tanpa batas"}
                      </p>
                   </div>
                   <div className="col-span-2">
                      <label className="text-slate-500 block">Konteks untuk AI</label>
-                     <p className="text-slate-300 mt-1 italic text-xs leading-relaxed line-clamp-2">"\${sessionData.context_text || 'Belum ada konteks'}"</p>
+                     <p className="text-slate-300 mt-1 italic text-xs leading-relaxed line-clamp-2">"${sessionData.context_text || 'Belum ada konteks'}"</p>
                   </div>
                </div>
            </div>
@@ -520,14 +520,14 @@ URL: ${url}`);
            </div>
 
            {/* Schedule Status */}
-           {(sessionData.schedule_enabled || (sessionData.schedules && sessionData.schedules.length > 0)) && (
+           {(sessionData.schedule_enabled || (sessionData?.schedules && sessionData?.schedules.length > 0)) && (
              <div className="p-6 bg-slate-900/50 border border-purple-500/20 rounded-3xl">
                <h3 className="font-bold text-white mb-3 flex items-center justify-between">
                  <div className="flex items-center gap-2">
                    <Clock size={18} className="text-purple-400" />
                    Schedule
                  </div>
-                 {sessionData.schedules && sessionData.schedules.length > 0 && (
+                 {sessionData?.schedules && sessionData?.schedules.length > 0 && (
                    <span className="text-[10px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
                      Multi
                    </span>
@@ -536,12 +536,12 @@ URL: ${url}`);
                
                <div className="space-y-4">
                  {/* Multi-Schedules Display */}
-                 {sessionData.schedules && sessionData.schedules.length > 0 ? (
+                 {sessionData?.schedules && sessionData?.schedules.length > 0 ? (
                    <div className="space-y-3">
-                     {sessionData.schedules.map((schedule) => (
+                     {sessionData?.schedules.map((schedule) => (
                        <div key={schedule.id} className="p-3 bg-slate-950/50 rounded-xl border border-white/5 space-y-1">
                          <div className="flex items-center justify-between">
-                           <span className={`text-[10px] font-bold uppercase tracking-wider \${schedule.active ? 'text-green-400' : 'text-slate-500'}`}>
+                           <span className={`text-[10px] font-bold uppercase tracking-wider ${schedule.active ? 'text-green-400' : 'text-slate-500'}`}>
                              {schedule.active ? '● Active' : '○ Inactive'}
                            </span>
                            <span className="text-[10px] text-slate-500 font-mono">
@@ -618,7 +618,7 @@ URL: ${url}`);
                  )}
                  </>
               </div>
-              <Link href={`/live/\${sessionData.id}`} target="_blank" className="mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700">
+              <Link href={`/live/${sessionData.id}`} target="_blank" className="mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700">
                  <span className="flex items-center justify-center gap-2 w-full">
                    Buka Preview Internal
                    <ExternalLink size={14} />
