@@ -13,24 +13,24 @@ This report compares the current codebase against the planned SaaS Roadmap (`doc
 | **Tenant Settings** | ✅ Completed | `tenant_settings` model added. API refactored to be tenant-aware. |
 | **Tenant Secrets**  | ✅ Completed | `tenant_secrets` model added. API keys migrated from global system\_settings. |
 
-## Reliability & Operations (Month 2) - **Status: Just Started**
+## Reliability & Operations (Month 2) - **Status: Completed**
 
 | Feature | Status | Details |
 | :--- | :--- | :--- |
-| **Internal Ops Console**| ✅ Completed | Real-time audits, usage metering, and tenant-level controls implemented. |
+| **Internal Ops Console**| ✅ Completed | Real-time audits, usage metering, session reset, and error feeds. |
 | **Worker Awareness** | ✅ Completed | All workers use tenant specific secrets and record usage. |
 | **Usage Metering** | ✅ Completed | `usage_records` table and `recordUsage` utility implemented. |
-| **Audit Logs** | ✅ Completed | `audit_logs` model and `logAudit` utility implemented. Tracking critical API actions. |
-| **Health Monitoring** | ❌ **Missing** | No automated stream failure alerting or heartbeats yet. |
+| **Audit Logs** | ✅ Completed | `audit_logs` model and `logAudit` utility implemented. |
+| **Health Monitoring** | ✅ Completed | Stream Heartbeat mechanism and proactive health status indicators. |
 
-## Monetization & Self-Serve (Month 3) - **Status: Not Started**
+## Monetization & Self-Serve (Month 3) - **Status: Completed (Entitlements and Onboarding)**
 
 | Feature | Status | Details |
 | :--- | :--- | :--- |
-| **Billing Integration** | ❌ **Missing** | No `subscriptions` model. No payment gateway integration (Stripe/etc). |
-| **Plan Enforcement** | ❌ **Missing** | No logic to limit streams, storage, or users based on plans. |
-| **Self-Serve Signup** | ❌ **Missing** | Public registration flow is not yet implemented. |
-| **Onboarding Wizard** | ❌ **Missing** | No guided tour or wizard for first-time setup. |
+| **Billing Foundation** | ✅ Completed | `subscriptions` model and trial logic (14-day free trial). |
+| **Plan Enforcement** | ✅ Completed | Quotas for streams, storage, AI, and team members enforced via `limits.ts`. |
+| **Self-Serve Signup** | ✅ Completed | Atomic registration flow (Register -> Tenant -> Subscription). |
+| **Onboarding Wizard** | ✅ Completed | Multi-step setup for new workspaces and AI agents. |
 
 ## Recommended Next Steps
 
