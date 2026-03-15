@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { Radio, MessageSquare, Users, Settings, Activity, ArrowLeft, Edit2, ExternalLink, Clock, Volume2, VolumeX } from "lucide-react";
+import { Radio, MessageSquare, Users, Settings, Activity, ArrowLeft, Edit2, ExternalLink, Clock, Volume2, VolumeX, Shield, ShieldAlert, ShieldCheck, Zap } from "lucide-react";
 import SessionControls from "@/components/admin/SessionControls";
 import EditSessionModal from "@/components/admin/EditSessionModal";
 import Link from "next/link";
@@ -81,6 +81,7 @@ export default function ClientSessionPage({ session }: ClientSessionPageProps) {
   const [sessionData, setSessionData] = useState(session);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(false);
+  const [health, setHealth] = useState<{ status: string; heartbeatAgeSeconds: number | null }>({ status: "IDLE", heartbeatAgeSeconds: null });
   const audioEnabledRef = useRef(false);
   const lastAudioUrlRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -284,6 +285,30 @@ URL: ${url}`);
     };
   }, [sessionData.id]);
 
+  // Health Polling
+  useEffect(() => {
+    if (sessionData.status !== 'LIVE') {
+      setHealth({ status: "IDLE", heartbeatAgeSeconds: null });
+      return;
+    }
+
+    const fetchHealth = async () => {
+      try {
+        const res = await fetch(`/api/live/${sessionData.id}/health`);
+        if (res.ok) {
+          const data = await res.json();
+          setHealth(data);
+        }
+      } catch (err) {
+        console.error("[ClientSessionPage] Health poll failed:", err);
+      }
+    };
+
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 10000);
+    return () => clearInterval(interval);
+  }, [sessionData.id, sessionData.status]);
+
   // Use a ref for audioEnabled to avoid reconnection but keep access in event handler
   // Or just use a global or state that doesn't trigger effect
   useEffect(() => {
@@ -366,8 +391,27 @@ URL: ${url}`);
              }`}>
                 {sessionData.status}
              </span>
-             <span className="text-slate-600 text-xs">•</span>
-             <span className="text-slate-500 text-xs font-mono uppercase tracking-widest">{sessionData.id}</span>
+              <span className="text-slate-600 text-xs">•</span>
+              <span className="text-slate-500 text-xs font-mono uppercase tracking-widest">{sessionData.id}</span>
+              
+              {sessionData.status === 'LIVE' && (
+                <>
+                  <span className="text-slate-600 text-xs">•</span>
+                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[10px] font-bold uppercase transition-all ${
+                    health.status === 'LIVE' 
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                      : health.status === 'ZOMBIE'
+                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
+                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                  }`}>
+                    {health.status === 'LIVE' ? <ShieldCheck size={12} /> : health.status === 'ZOMBIE' ? <ShieldAlert size={12} /> : <Activity size={12} />}
+                    <span>Health: {health.status}</span>
+                    {health.heartbeatAgeSeconds !== null && (
+                      <span className="opacity-50 font-normal">({health.heartbeatAgeSeconds}s)</span>
+                    )}
+                  </div>
+                </>
+              )}
           </div>
         </div>
       </div>

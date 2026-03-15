@@ -3,6 +3,7 @@ import fs from "fs";
 import { prisma } from "@/lib/prisma";
 import { AudioEvent, shiftAudioEvent } from "@/lib/audio-event-manager";
 import path from "path";
+import { sendStreamFailureAlert } from "./alerts";
 
 type ActiveAudioBatch = {
   id: string;
@@ -40,6 +41,8 @@ const AUDIO_EVENT_FALLBACK_DURATION_MS = 3000;
 const AUDIO_BATCH_MAX_ITEMS = 5;
 const AUDIO_BATCH_ACCUMULATION_MS = 400;
 const AUDIO_BATCH_DIR = path.join(process.cwd(), "logs", "audio-batches");
+const MONITOR_INTERVAL_MS = 15000;
+const HEARTBEAT_THRESHOLD_MS = 35000; // Slightly more than 30s to allow for scheduling jitter
 
 function getStringEnv(name: string, fallback: string) {
   const value = process.env[name]?.trim();
@@ -227,9 +230,59 @@ async function probeInputHasAudio(input: string) {
  */
 class WorkerManager {
   private sessions: Map<string, ManagedSession> = new Map();
+  private monitorInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     console.log("[WorkerManager] Initialized");
+    this.startMonitoring();
+  }
+
+  private startMonitoring() {
+    if (this.monitorInterval) return;
+    this.monitorInterval = setInterval(() => {
+      void this.monitorSessions();
+    }, MONITOR_INTERVAL_MS);
+  }
+
+  private async monitorSessions() {
+    const now = Date.now();
+    for (const [liveId, session] of this.sessions.entries()) {
+      if (session.process && !session.manualStop && !session.intentionalRespawn) {
+        const age = now - session.lastHeartbeat;
+        if (age > HEARTBEAT_THRESHOLD_MS) {
+          console.warn(`[WorkerManager][Monitor] 🧟 Zombie detected for session ${liveId}. No heartbeat for ${Math.round(age/1000)}s. Restarting...`);
+          
+          session.intentionalRespawn = true;
+          session.process.kill("SIGKILL"); // Force kill zombie
+          
+          try {
+             // Log the auto-healing event to audit logs
+             await (prisma as any).audit_logs.create({
+                data: {
+                   tenant_id: await this.getTenantIdForSession(liveId),
+                   actor_type: "system",
+                   action: "auto_heal",
+                   target_type: "live_session",
+                   target_id: liveId,
+                   metadata: {
+                      reason: "zombie_heartbeat_timeout",
+                      heartbeat_age_ms: age
+                   }
+                }
+             });
+          } catch (e) {
+             console.error("[WorkerManager][Monitor] Failed to log auto-healing audit:", e);
+          }
+        }
+      }
+    }
+  }
+
+  private async getTenantIdForSession(liveId: string): Promise<string | null> {
+    try {
+      const s = await prisma.live_sessions.findUnique({ where: { id: liveId }, select: { tenant_id: true } });
+      return s?.tenant_id || null;
+    } catch { return null; }
   }
 
   /**
@@ -539,6 +592,12 @@ class WorkerManager {
         `[WorkerManager] Session ${session.liveId} reached max restart attempts (${ffmpegConfig.maxRestartAttempts}).`
       );
       await this.updateSessionStatus(session.liveId, "ERROR");
+      
+      const tenantId = await this.getTenantIdForSession(session.liveId);
+      if (tenantId) {
+        void sendStreamFailureAlert(tenantId, session.liveId);
+      }
+
       this.cleanupSession(session.liveId);
       return;
     }
