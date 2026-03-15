@@ -127,6 +127,11 @@ async function startWorker() {
             }
 
             const settings = tenantId ? await getTenantSettings(tenantId) : null;
+            if (settings?.use_client_side_ai) {
+                console.log(`[TTS-Worker][Tenant:${tenantId}] Skipping: Client-side BYOK is active.`);
+                return;
+            }
+
             const secrets = tenantId ? await getTenantSecrets(tenantId) : {};
             
             const provider = settings?.tts_provider || process.env.TTS_PROVIDER || "openai";

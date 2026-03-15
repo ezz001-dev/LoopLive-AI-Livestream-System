@@ -87,6 +87,7 @@ export async function PATCH(request: Request) {
       "r2_signed_reads",
       "r2_signed_read_ttl_seconds",
       "default_loop_mode",
+      "use_client_side_ai",
     ];
 
     for (const key of allowedSettingsFields) {

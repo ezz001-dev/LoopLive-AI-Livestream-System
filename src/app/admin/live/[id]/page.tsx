@@ -19,7 +19,12 @@ export default async function SessionControlPage({ params }: { params: { id: str
         orderBy: { created_at: "desc" },
         take: 5
       },
-      schedules: true
+      schedules: true,
+      tenant: {
+        include: {
+          settings: true
+        }
+      }
     }
   });
 

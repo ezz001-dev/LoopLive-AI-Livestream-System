@@ -184,6 +184,13 @@ async function startWorker() {
 
             // 2. Limit Check
             const tenantId = session.tenant_id;
+            const settings = await getTenantSettings(tenantId);
+
+            if (settings.use_client_side_ai) {
+                console.log(`[AI-Worker][Tenant:${tenantId}] Skipping: Client-side BYOK is active.`);
+                return;
+            }
+
             const limitCheck = await checkPlanLimit(tenantId, "maxAiResponsesPerDay");
             if (!limitCheck.allowed) {
                 console.warn(`[AI-Worker][Tenant:${tenantId}] Limit reached: ${limitCheck.message}`);

@@ -11,6 +11,15 @@ const SILENT_AUDIO_DATA_URI =
   "data:audio/wav;base64,UklGRiwAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQgAAAAAAAAA";
 
 interface SessionData {
+  tenant?: {
+    settings: {
+      use_client_side_ai: boolean;
+      ai_provider: string;
+      ai_name: string;
+      ai_persona?: string | null;
+      max_response_length: number;
+    }
+  };
   id: string;
   title: string;
   status: string;
@@ -139,6 +148,79 @@ export default function ClientSessionPage({ session }: ClientSessionPageProps) {
       console.log("[ClientSessionPage] ✅ Connected to SocketServer");
       s.emit("join_room", sessionData.id);
       console.log("[ClientSessionPage] Joined room:", sessionData.id);
+    });
+
+    // --- Client-Side BYOK AI Handler ---
+    s.on("chat_event_queue", async (event: any) => {
+      const settings = (sessionData as any).tenant?.settings;
+      if (!settings?.use_client_side_ai) return;
+      if (event.type !== "NEW_CHAT") return;
+      if (event.liveId !== sessionData.id) return;
+
+      console.log("[ClientSessionPage][BYOK] Intercepting chat for local processing:", event.message);
+
+      const openAIKey = localStorage.getItem("byok_openai_key");
+      const geminiKey = localStorage.getItem("byok_gemini_key");
+
+      if (!openAIKey && !geminiKey) {
+        console.warn("[ClientSessionPage][BYOK] No local keys found in localStorage. Skipping.");
+        return;
+      }
+
+      try {
+        const provider = settings.ai_provider;
+        let reply = "";
+
+        const systemPrompt = settings.ai_persona || `You are an AI named ${settings.ai_name}. Respond to followers in a way that is engaging. Tone: ${sessionData.ai_tone}.`;
+        const userInput = `${event.viewerId}: ${event.message}`;
+
+        if (provider === "gemini" && geminiKey) {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: `${systemPrompt}\n\n${userInput}` }] }]
+                })
+            });
+            const data = await res.json();
+            reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Thanks!";
+        } else if (openAIKey) {
+            const res = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${openAIKey}`
+                },
+                body: JSON.stringify({
+                    model: "gpt-4o-mini",
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userInput }
+                    ],
+                    max_tokens: settings.max_response_length || 150
+                })
+            });
+            const data = await res.json();
+            reply = data.choices?.[0]?.message?.content || "Thanks!";
+        }
+
+        if (reply) {
+            console.log("[ClientSessionPage][BYOK] Local AI Reply generated:", reply);
+            // Submit to server for broadcast
+            await fetch("/api/live/client-reply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    liveId: sessionData.id,
+                    chatId: event.chatId,
+                    prompt: event.message,
+                    reply: reply,
+                })
+            });
+        }
+      } catch (err) {
+        console.error("[ClientSessionPage][BYOK] Agent error:", err);
+      }
     });
 
     s.on("ai_voice_play", async (data: { audioUrl: string; text: string }) => {
@@ -367,11 +449,11 @@ URL: ${url}`);
                       {sessionData.video?.storage_provider || "local"}
                     </p>
                   </div>
-                  <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                  <div className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest \${
                     sessionData.status === "LIVE"
                       ? "border border-red-500/30 bg-red-500/15 text-red-300"
                       : "border border-slate-700 bg-slate-950/80 text-slate-300"
-                  }`}>
+                  }\`}>
                     {sessionData.status === "LIVE" ? "Live Running" : "Ready"}
                   </div>
                 </div>
@@ -404,7 +486,7 @@ URL: ${url}`);
                      <label className="text-slate-500 block">Platform Destination</label>
                      <p className="text-slate-300 mt-1 text-xs leading-relaxed">
                        {sessionData.target_rtmp_url
-                         ? `${sessionData.target_rtmp_url}${sessionData.stream_key ? " + stream key configured" : ""}`
+                         ? `\${sessionData.target_rtmp_url}\${sessionData.stream_key ? " + stream key configured" : ""}`
                          : "Belum ada RTMP eksternal. Sesi akan memakai relay internal MediaMTX."}
                      </p>
                   </div>
@@ -412,13 +494,13 @@ URL: ${url}`);
                      <label className="text-slate-500 block">Mode Loop Video</label>
                      <p className="text-slate-300 mt-1 text-xs leading-relaxed">
                        {sessionData.loop_mode === "count"
-                         ? `Diputar total ${sessionData.loop_count || 1} kali`
+                         ? `Diputar total \${sessionData.loop_count || 1} kali`
                          : "Loop tanpa batas"}
                      </p>
                   </div>
                   <div className="col-span-2">
                      <label className="text-slate-500 block">Konteks untuk AI</label>
-                     <p className="text-slate-300 mt-1 italic text-xs leading-relaxed line-clamp-2">"{sessionData.context_text || 'Belum ada konteks'}"</p>
+                     <p className="text-slate-300 mt-1 italic text-xs leading-relaxed line-clamp-2">"\${sessionData.context_text || 'Belum ada konteks'}"</p>
                   </div>
                </div>
            </div>
@@ -459,7 +541,7 @@ URL: ${url}`);
                      {sessionData.schedules.map((schedule) => (
                        <div key={schedule.id} className="p-3 bg-slate-950/50 rounded-xl border border-white/5 space-y-1">
                          <div className="flex items-center justify-between">
-                           <span className={`text-[10px] font-bold uppercase tracking-wider ${schedule.active ? 'text-green-400' : 'text-slate-500'}`}>
+                           <span className={`text-[10px] font-bold uppercase tracking-wider \${schedule.active ? 'text-green-400' : 'text-slate-500'}`}>
                              {schedule.active ? '● Active' : '○ Inactive'}
                            </span>
                            <span className="text-[10px] text-slate-500 font-mono">
@@ -536,7 +618,7 @@ URL: ${url}`);
                  )}
                  </>
               </div>
-              <Link href={`/live/${sessionData.id}`} target="_blank" className="mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700">
+              <Link href={`/live/\${sessionData.id}`} target="_blank" className="mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all border border-slate-700">
                  <span className="flex items-center justify-center gap-2 w-full">
                    Buka Preview Internal
                    <ExternalLink size={14} />

@@ -252,6 +252,7 @@ model tenant_settings {
   r2_signed_reads            Boolean  @default(false)
   r2_signed_read_ttl_seconds Int      @default(43200)
   default_loop_mode          String   @default("infinite")
+  use_client_side_ai         Boolean  @default(false)
   updated_at                 DateTime @updatedAt
 
   tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)

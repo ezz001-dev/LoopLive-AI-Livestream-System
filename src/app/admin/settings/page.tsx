@@ -45,7 +45,8 @@ export default function SettingsPage() {
     max_response_length: 150,
     yt_cookie: "",
     app_base_url: "http://localhost:3000",
-    scheduler_api_key: "looplive-scheduler-internal-key"
+    scheduler_api_key: "looplive-scheduler-internal-key",
+    use_client_side_ai: false
   });
 
   const [soundEvents, setSoundEvents] = useState<SoundEvent[]>([]);
@@ -76,6 +77,21 @@ export default function SettingsPage() {
     }
   };
 
+  // NEW: Load keys from local storage if client-side AI is enabled
+  useEffect(() => {
+    if (settings.use_client_side_ai) {
+      const localOpenAI = localStorage.getItem("byok_openai_key");
+      const localGemini = localStorage.getItem("byok_gemini_key");
+      if (localOpenAI || localGemini) {
+        setSettings(prev => ({
+          ...prev,
+          openai_api_key: localOpenAI ? `[LOCAL] ${localOpenAI.slice(-4)}` : prev.openai_api_key,
+          gemini_api_key: localGemini ? `[LOCAL] ${localGemini.slice(-4)}` : prev.gemini_api_key,
+        }));
+      }
+    }
+  }, [settings.use_client_side_ai]);
+
   const fetchSoundEvents = async () => {
     try {
       const res = await fetch("/api/sounds");
@@ -93,10 +109,18 @@ export default function SettingsPage() {
       setSaving(true);
       setError(null);
 
+      // Filter out local keys from being sent to server
+      const payload: any = { ...settings };
+      if (settings.use_client_side_ai) {
+          // If in BYOK mode, don't send keys to server if they are locally managed
+          if (payload.openai_api_key.includes("[LOCAL]")) payload.openai_api_key = "";
+          if (payload.gemini_api_key.includes("[LOCAL]")) payload.gemini_api_key = "";
+      }
+
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Failed to save settings");
@@ -256,13 +280,40 @@ export default function SettingsPage() {
 
           {/* --- API KEYS TAB --- */}
           {activeTab === "api_keys" && (
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 space-y-5 backdrop-blur-xl">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
-                  <Key size={20} />
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 space-y-6 backdrop-blur-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
+                    <Key size={20} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">API Keys</h3>
                 </div>
-                <h3 className="text-xl font-bold text-white">API Keys</h3>
+                
+                <div className="flex items-center gap-3 bg-slate-950/50 p-2 rounded-2xl border border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 ml-2">Client-Side BYOK</span>
+                    <button 
+                         onClick={() => setSettings({...settings, use_client_side_ai: !settings.use_client_side_ai})}
+                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${settings.use_client_side_ai ? 'bg-blue-600' : 'bg-slate-700'}`}
+                    >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.use_client_side_ai ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
               </div>
+
+              {settings.use_client_side_ai && (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex gap-3">
+                      <AlertCircle className="text-amber-500 shrink-0" size={18} />
+                      <div className="space-y-1">
+                          <p className="text-xs font-bold text-amber-500 uppercase tracking-wider">Zero-Knowledge Mode On</p>
+                          <p className="text-[10px] text-slate-400 leading-relaxed">
+                            API Key Anda hanya akan disimpan di browser ini (localStorage). 
+                            LoopLive tidak akan menyimpan key Anda di database server. 
+                            <br/>
+                            <strong className="text-white">Penting:</strong> AI & TTS hanya akan berfungsi jika Anda membuka halaman "Live Management" saat streaming berlangsung.
+                          </p>
+                      </div>
+                  </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-400">OpenAI API Key</label>
@@ -270,8 +321,16 @@ export default function SettingsPage() {
                   type="password"
                   name="openai_api_key"
                   value={settings.openai_api_key || ""}
-                  onChange={handleChange}
-                  placeholder="sk-..."
+                  onChange={(e) => {
+                      const val = e.target.value;
+                      if (settings.use_client_side_ai) {
+                          localStorage.setItem("byok_openai_key", val);
+                          setSettings({...settings, openai_api_key: val});
+                      } else {
+                          handleChange(e);
+                      }
+                  }}
+                  placeholder={settings.use_client_side_ai ? "Paste key here (Saved locally)" : "sk-..."}
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-blue-500/50 transition-all font-mono text-sm placeholder:text-slate-600"
                 />
               </div>
@@ -282,8 +341,16 @@ export default function SettingsPage() {
                   type="password"
                   name="gemini_api_key"
                   value={settings.gemini_api_key || ""}
-                  onChange={handleChange}
-                  placeholder="AIzaSy..."
+                  onChange={(e) => {
+                      const val = e.target.value;
+                      if (settings.use_client_side_ai) {
+                          localStorage.setItem("byok_gemini_key", val);
+                          setSettings({...settings, gemini_api_key: val});
+                      } else {
+                          handleChange(e);
+                      }
+                  }}
+                  placeholder={settings.use_client_side_ai ? "Paste key here (Saved locally)" : "AIzaSy..."}
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-purple-500/50 transition-all font-mono text-sm placeholder:text-slate-600"
                 />
                 <p className="text-[10px] text-slate-500 px-1 italic">
