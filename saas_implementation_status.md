@@ -24,6 +24,7 @@ This report compares the current codebase against the planned SaaS Roadmap (`doc
 | **BYOK (Phase 8)**| ✅ Completed | Zero-knowledge client-side AI/TTS key management. |
 | **Email OTP (Phase 9)**| ✅ Completed | Mandatory email verification during registration. |
 | **Health & Alerts (Phase 10)**| ✅ Completed | Zombie detection, auto-healing, and proactive email alerts. |
+| **BYOK Refinements (Phase 11)**| ✅ Completed | Zero-knowledge enforcement and unlimited AI responses for local keys. |
 
 ## Monetization & Self-Serve (Month 3) - **Status: Completed (Entitlements and Onboarding)**
 

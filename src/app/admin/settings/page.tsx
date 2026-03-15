@@ -112,9 +112,9 @@ export default function SettingsPage() {
       // Filter out local keys from being sent to server
       const payload: any = { ...settings };
       if (settings.use_client_side_ai) {
-          // If in BYOK mode, don't send keys to server if they are locally managed
-          if (payload.openai_api_key.includes("[LOCAL]")) payload.openai_api_key = "";
-          if (payload.gemini_api_key.includes("[LOCAL]")) payload.gemini_api_key = "";
+          // STRICT BYOK ENFORCEMENT: Never send keys to server
+          payload.openai_api_key = "";
+          payload.gemini_api_key = "";
       }
 
       const res = await fetch("/api/settings", {
@@ -124,6 +124,17 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) throw new Error("Failed to save settings");
+
+      if (settings.use_client_side_ai) {
+        // Redraw local keys with [LOCAL] prefix after save to reassure user
+        const localOpenAI = localStorage.getItem("byok_openai_key");
+        const localGemini = localStorage.getItem("byok_gemini_key");
+        setSettings(prev => ({
+          ...prev,
+          openai_api_key: localOpenAI ? `[LOCAL] ${localOpenAI.slice(-4)}` : "",
+          gemini_api_key: localGemini ? `[LOCAL] ${localGemini.slice(-4)}` : "",
+        }));
+      }
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -290,7 +301,7 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="flex items-center gap-3 bg-slate-950/50 p-2 rounded-2xl border border-slate-800">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 ml-2">Client-Side BYOK</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-500 ml-2">Aktifkan Fitur BYOK</span>
                     <button 
                          onClick={() => setSettings({...settings, use_client_side_ai: !settings.use_client_side_ai})}
                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${settings.use_client_side_ai ? 'bg-blue-600' : 'bg-slate-700'}`}
@@ -300,7 +311,21 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {settings.use_client_side_ai && (
+              {!settings.use_client_side_ai ? (
+                  <div className="p-8 bg-slate-950/50 border border-slate-800 rounded-2xl text-center space-y-3">
+                      <div className="mx-auto h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 mb-4">
+                        <BrainCircuit size={24} />
+                      </div>
+                      <h4 className="text-white font-bold text-lg">Menggunakan AI Platform</h4>
+                      <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+                        Sistem sedang menggunakan AI bawaan (System Keys). Respon AI otomatis akan memotong kuota harian sesuai dengan paket langganan Anda.
+                      </p>
+                      <p className="text-xs text-slate-500 pt-2">
+                        Aktifkan fitur BYOK di atas jika Anda ingin menggunakan API Key milik Anda sendiri (Unlimited AI Responses).
+                      </p>
+                  </div>
+              ) : (
+                <>
                   <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex gap-3">
                       <AlertCircle className="text-amber-500 shrink-0" size={18} />
                       <div className="space-y-1">
@@ -313,10 +338,12 @@ export default function SettingsPage() {
                           </p>
                       </div>
                   </div>
-              )}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-400">OpenAI API Key</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-400">OpenAI API Key</label>
+                  {settings.use_client_side_ai && <span className="text-[9px] bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Managed Locally</span>}
+                </div>
                 <input
                   type="password"
                   name="openai_api_key"
@@ -336,7 +363,10 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-400">Google Gemini API Key</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-400">Google Gemini API Key</label>
+                  {settings.use_client_side_ai && <span className="text-[9px] bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Managed Locally</span>}
+                </div>
                 <input
                   type="password"
                   name="gemini_api_key"
@@ -358,6 +388,8 @@ export default function SettingsPage() {
                   <a href="https://aistudio.google.com/" target="_blank" className="text-purple-400 hover:underline">aistudio.google.com</a>
                 </p>
               </div>
+              </>
+             )}
             </div>
           )}
 

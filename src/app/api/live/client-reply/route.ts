@@ -46,6 +46,19 @@ export async function POST(req: Request) {
       createdAt: aiReply.created_at
     }));
 
+    // Record Usage for analytics (even though limits bypassed)
+    try {
+      const { recordUsage } = await import("@/lib/usage");
+      await recordUsage(session.tenantId as string, "ai_responses", 1, {
+        replyId: aiReply.id,
+        provider: provider || "client_side",
+        liveId: liveId,
+        byok: true
+      });
+    } catch (usageError) {
+      console.error("[Client Reply API] Usage tracking error:", usageError);
+    }
+
     // 4. Trigger TTS (The server-side TTS worker can still handle this using system keys IF BYOK is only for AI, 
     // but usually BYOK follows through. For now, we'll trigger the standard voice play event).
     // The client can also choose to do TTS locally, but broadcasting is safer for sync.

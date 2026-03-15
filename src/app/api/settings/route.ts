@@ -102,6 +102,23 @@ export async function PATCH(request: Request) {
       }
     }
 
+    // BYOK Enforcement: Never store AI keys on server if Zero-Knowledge mode is active
+    let isByokActive = false;
+    if (body.use_client_side_ai !== undefined) {
+      isByokActive = body.use_client_side_ai;
+    } else {
+      const currentSettings = await (prisma as any).tenant_settings.findUnique({
+        where: { tenant_id: tenantId },
+        select: { use_client_side_ai: true }
+      });
+      isByokActive = currentSettings?.use_client_side_ai || false;
+    }
+
+    let finalSecretsUpdate = secretsUpdate;
+    if (isByokActive) {
+      finalSecretsUpdate = secretsUpdate.filter(s => s.key !== "openai_api_key" && s.key !== "gemini_api_key");
+    }
+
     // 1. Update/Upsert Tenant Settings
     await (prisma as any).tenant_settings.upsert({
       where: { tenant_id: tenantId },
@@ -113,7 +130,7 @@ export async function PATCH(request: Request) {
     });
 
     // 2. Update/Upsert Tenant Secrets
-    for (const secret of secretsUpdate) {
+    for (const secret of finalSecretsUpdate) {
       // If the incoming value is masked (contains **** or is placeholder), skip update
       if (secret.value.includes("****") || secret.value === "********") continue;
 
@@ -149,7 +166,7 @@ export async function PATCH(request: Request) {
       targetId: tenantId,
       metadata: {
         fieldsUpdated: Object.keys(settingsUpdate),
-        secretsUpdated: secretsUpdate.map(s => s.key)
+        secretsUpdated: finalSecretsUpdate.map(s => s.key)
       }
     });
 

@@ -98,6 +98,16 @@ export async function checkPlanLimit(
     }
 
     if (metric === "maxAiResponsesPerDay") {
+        // BYOK users get unlimited AI responses as they use their own keys
+        const settings = await (prisma as any).tenant_settings.findUnique({
+            where: { tenant_id: tenantId },
+            select: { use_client_side_ai: true }
+        });
+
+        if (settings?.use_client_side_ai) {
+            return { allowed: true };
+        }
+
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const responseCount = await (prisma as any).usage_records.aggregate({
             where: { 
