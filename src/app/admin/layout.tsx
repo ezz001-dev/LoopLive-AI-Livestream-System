@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard } from "lucide-react";
+import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard, User } from "lucide-react";
 import TourGuide from "../../components/admin/TourGuide";
 import SubscriptionStatus from "../../components/SubscriptionStatus";
 
@@ -50,6 +50,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const [canAccessOps, setCanAccessOps] = React.useState(false);
+  const [userProfile, setUserProfile] = React.useState<any>(null);
 
   React.useEffect(() => {
     let active = true;
@@ -68,10 +69,27 @@ export default function AdminLayout({
       }
     }
 
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/user/profile");
+        if (res.ok) {
+          const data = await res.json();
+          if (active) setUserProfile(data);
+        }
+      } catch (err) {
+        console.error("Failed to load user profile", err);
+      }
+    }
+
     void loadSession();
+    void loadProfile();
+
+    const handleProfileUpdate = () => void loadProfile();
+    window.addEventListener("profile-updated", handleProfileUpdate);
 
     return () => {
       active = false;
+      window.removeEventListener("profile-updated", handleProfileUpdate);
     };
   }, []);
 
@@ -102,6 +120,7 @@ export default function AdminLayout({
           <NavLink href="/admin" id="tour-nav-dashboard" icon={<LayoutDashboard size={20} className="group-hover:scale-110 transition-transform" />} label="Ringkasan" />
           <NavLink href="/admin/videos" id="tour-nav-videos" icon={<Video size={20} className="group-hover:scale-110 transition-transform" />} label="Video" />
           <NavLink href="/admin/live" id="tour-nav-live" icon={<Radio size={20} className="group-hover:scale-110 transition-transform" />} label="Sesi Live" />
+          <NavLink href="/admin/profile" icon={<User size={20} className="group-hover:scale-110 transition-transform" />} label="Profil Akun" />
           <NavLink href="/admin/settings" id="tour-nav-settings" icon={<Settings size={20} className="group-hover:scale-110 transition-transform" />} label="Pengaturan" />
           {canAccessOps && (
             <NavLink
@@ -145,8 +164,14 @@ export default function AdminLayout({
               <HelpCircle size={14} />
               Panduan Singkat
             </button>
-            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 shadow-lg shadow-blue-500/20" />
-            <span className="text-sm font-medium">Admin</span>
+            <Link href="/admin/profile" className="flex items-center gap-3 hover:bg-slate-800 p-1 pr-3 rounded-full transition-all group">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 shadow-lg shadow-blue-500/20 flex items-center justify-center text-[10px] font-black text-white">
+                {userProfile?.display_name ? userProfile.display_name[0].toUpperCase() : userProfile?.email ? userProfile.email[0].toUpperCase() : "A"}
+              </div>
+              <span className="text-sm font-medium group-hover:text-blue-400 transition-colors">
+                {userProfile?.display_name || userProfile?.email || "Admin"}
+              </span>
+            </Link>
           </div>
         </header>
 
