@@ -8,10 +8,16 @@ const DEFAULT_INTERNAL_ACCESS_MODE = "disabled";
 function isProtectedPath(pathname: string) {
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/api/auth");
   const isAdminRoute = pathname.startsWith("/admin");
+  const isOpsRoute = pathname.startsWith("/ops");
   const isProtectedApiRoute = pathname.startsWith("/api/live") || pathname.startsWith("/api/videos");
   const isYouTubeIdRoute = pathname.match(/\/api\/live\/[^\/]+\/youtube-id$/);
 
-  return { isAuthRoute, isAdminRoute, isProtectedApiRoute, isYouTubeIdRoute };
+  return { isAuthRoute, isAdminRoute, isOpsRoute, isProtectedApiRoute, isYouTubeIdRoute };
+}
+
+async function verifyAuthToken(token: string) {
+  const { payload } = await jwtVerify(token, JWT_SECRET);
+  return payload;
 }
 
 function getInternalAccessMode() {
@@ -153,9 +159,9 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Define protected and public routes
-  const { isAuthRoute, isAdminRoute, isProtectedApiRoute, isYouTubeIdRoute } = isProtectedPath(pathname);
+  const { isAuthRoute, isAdminRoute, isOpsRoute, isProtectedApiRoute, isYouTubeIdRoute } = isProtectedPath(pathname);
 
-  if (isAdminRoute || isProtectedApiRoute || isAuthRoute) {
+  if (isAdminRoute || isOpsRoute || isProtectedApiRoute || isAuthRoute) {
     const internalAccessResponse = enforceInternalAccess(request, pathname);
     if (internalAccessResponse) {
       console.warn(`[Security] Blocked internal access for ${pathname}`);
@@ -170,7 +176,7 @@ export async function proxy(request: NextRequest) {
   if (isAuthRoute) {
     if (token) {
       try {
-        await jwtVerify(token, JWT_SECRET);
+        await verifyAuthToken(token);
         console.log("[Security] Already logged in, redirecting to /admin");
         return NextResponse.redirect(new URL("/admin", request.url));
       } catch (e) {
@@ -182,7 +188,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // 4. Handle Protected routes (Admin & Live APIs)
-  if (isAdminRoute || isProtectedApiRoute) {
+  if (isAdminRoute || isOpsRoute || isProtectedApiRoute) {
     // Allow internal scheduler requests with API key
     const schedulerKey = request.headers.get("x-scheduler-key");
     const expectedKey = process.env.SCHEDULER_API_KEY || "looplive-scheduler-internal-key";
@@ -199,7 +205,12 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-      await jwtVerify(token, JWT_SECRET);
+      const payload = await verifyAuthToken(token);
+
+      if (isOpsRoute && !payload.canAccessOps) {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+
       // console.log("[Security] JWT Verified successfully");
       return NextResponse.next();
     } catch (e: any) {
@@ -219,5 +230,5 @@ export async function proxy(request: NextRequest) {
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: ["/admin/:path*", "/api/live/:path*", "/api/videos/:path*", "/login"],
+  matcher: ["/admin/:path*", "/ops/:path*", "/api/live/:path*", "/api/videos/:path*", "/login"],
 };

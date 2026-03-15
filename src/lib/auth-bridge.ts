@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { canAccessInternalOps } from "@/lib/internal-ops";
 
 export type AuthBridgeUser = {
   id: string;
@@ -8,6 +9,8 @@ export type AuthBridgeUser = {
   authSource: "users" | "admin_users";
   tenantId: string;
   tenantRole: string;
+  appRole: "tenant_admin" | "internal_ops";
+  canAccessOps: boolean;
 };
 
 export function hashPassword(password: string) {
@@ -88,6 +91,7 @@ async function syncLegacyAdminToUsers(legacyAdmin: { email: string; password: st
 
 export async function authenticateWithBridge(email: string, password: string): Promise<AuthBridgeUser | null> {
   const hashedPassword = hashPassword(password);
+  const isInternalOps = canAccessInternalOps(email);
 
   const tenantFacingUser = await (prisma as any).users.findUnique({
     where: { email },
@@ -102,6 +106,8 @@ export async function authenticateWithBridge(email: string, password: string): P
       authSource: "users",
       tenantId: membership.tenantId,
       tenantRole: membership.tenantRole,
+      appRole: isInternalOps ? "internal_ops" : "tenant_admin",
+      canAccessOps: isInternalOps,
     };
   }
 
@@ -128,5 +134,7 @@ export async function authenticateWithBridge(email: string, password: string): P
     authSource: "admin_users",
     tenantId: membership.tenantId,
     tenantRole: membership.tenantRole,
+    appRole: isInternalOps ? "internal_ops" : "tenant_admin",
+    canAccessOps: isInternalOps,
   };
 }

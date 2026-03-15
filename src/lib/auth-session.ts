@@ -12,6 +12,8 @@ export type AuthTokenPayload = {
   authSource: string;
   tenantId?: string;
   tenantRole?: string;
+  appRole?: string;
+  canAccessOps?: boolean;
 };
 
 export async function getAuthSession(): Promise<AuthTokenPayload | null> {
@@ -32,6 +34,8 @@ export async function getAuthSession(): Promise<AuthTokenPayload | null> {
       authSource: String(payload.authSource || ""),
       tenantId: payload.tenantId ? String(payload.tenantId) : undefined,
       tenantRole: payload.tenantRole ? String(payload.tenantRole) : undefined,
+      appRole: payload.appRole ? String(payload.appRole) : undefined,
+      canAccessOps: Boolean(payload.canAccessOps),
     };
   } catch {
     return null;

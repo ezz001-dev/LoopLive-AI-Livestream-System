@@ -28,6 +28,8 @@ export async function POST(req: Request) {
       authSource: user.authSource,
       tenantId: user.tenantId,
       tenantRole: user.tenantRole,
+      appRole: user.appRole,
+      canAccessOps: user.canAccessOps,
     })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()

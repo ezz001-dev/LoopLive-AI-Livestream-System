@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle } from "lucide-react";
+import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield } from "lucide-react";
 import TourGuide from "../../components/admin/TourGuide";
 
 type NavLinkProps = {
@@ -48,6 +48,31 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [canAccessOps, setCanAccessOps] = React.useState(false);
+
+  React.useEffect(() => {
+    let active = true;
+
+    async function loadSession() {
+      try {
+        const res = await fetch("/api/auth/session", { cache: "no-store" });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (active) {
+          setCanAccessOps(Boolean(data?.session?.canAccessOps));
+        }
+      } catch (error) {
+        console.error("Failed to load auth session", error);
+      }
+    }
+
+    void loadSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleLogout = async () => {
     // We can just set a past expiry date on the cookie via a helper API or directly in browser if permitted
@@ -77,6 +102,13 @@ export default function AdminLayout({
           <NavLink href="/admin/videos" id="tour-nav-videos" icon={<Video size={20} className="group-hover:scale-110 transition-transform" />} label="Video" />
           <NavLink href="/admin/live" id="tour-nav-live" icon={<Radio size={20} className="group-hover:scale-110 transition-transform" />} label="Sesi Live" />
           <NavLink href="/admin/settings" id="tour-nav-settings" icon={<Settings size={20} className="group-hover:scale-110 transition-transform" />} label="Pengaturan" />
+          {canAccessOps && (
+            <NavLink
+              href="/ops"
+              icon={<Shield size={20} className="group-hover:scale-110 transition-transform" />}
+              label="Ops Console"
+            />
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-800">
