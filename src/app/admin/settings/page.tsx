@@ -68,7 +68,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings");
       if (!res.ok) throw new Error("Failed to fetch settings");
       const data = await res.json();
-      setSettings(prev => ({ ...prev, ...data }));
+      setSettings((prev: any) => ({ ...prev, ...data }));
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -92,7 +92,7 @@ export default function SettingsPage() {
     try {
       setSaving(true);
       setError(null);
-      
+
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -100,7 +100,7 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) throw new Error("Failed to save settings");
-      
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
@@ -118,16 +118,16 @@ export default function SettingsPage() {
 
     try {
       setUploading(true);
-      
+
       // 1. Upload file
       const formData = new FormData();
       formData.append("file", newSound.file);
-      
+
       const uploadRes = await fetch("/api/sounds/upload", {
         method: "POST",
         body: formData,
       });
-      
+
       if (!uploadRes.ok) throw new Error("File upload failed");
       const { url } = await uploadRes.json();
 
@@ -180,7 +180,7 @@ export default function SettingsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setSettings(prev => ({
+    setSettings((prev: any) => ({
       ...prev,
       [name]: ["rtmp_port", "hls_port", "max_response_length"].includes(name) ? parseInt(value) || 0 : value
     }));
@@ -212,11 +212,10 @@ export default function SettingsPage() {
           <button
             onClick={activeTab === "sound_events" ? fetchSoundEvents : handleSave}
             disabled={saving}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-semibold transition-all shadow-lg active:scale-95 disabled:opacity-50 ${
-              saved
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-semibold transition-all shadow-lg active:scale-95 disabled:opacity-50 ${saved
                 ? "bg-green-600 shadow-green-600/20 text-white"
                 : "bg-blue-600 hover:bg-blue-500 shadow-blue-600/20 text-white"
-            }`}
+              }`}
           >
             {saving ? (
               <Loader2 size={18} className="animate-spin" />
@@ -240,11 +239,10 @@ export default function SettingsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all ${
-                  isActive
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all ${isActive
                     ? `bg-slate-800 text-white border border-slate-700`
                     : "hover:bg-slate-900 text-slate-400 hover:text-slate-300"
-                }`}
+                  }`}
               >
                 <Icon size={20} className={isActive ? `text-white` : `text-slate-500`} />
                 <span className="font-medium">{tab.label}</span>
@@ -268,25 +266,25 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-400">OpenAI API Key</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   name="openai_api_key"
-                  value={settings.openai_api_key || ""} 
+                  value={settings.openai_api_key || ""}
                   onChange={handleChange}
                   placeholder="sk-..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-blue-500/50 transition-all font-mono text-sm placeholder:text-slate-600" 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-blue-500/50 transition-all font-mono text-sm placeholder:text-slate-600"
                 />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-400">Google Gemini API Key</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   name="gemini_api_key"
-                  value={settings.gemini_api_key || ""} 
+                  value={settings.gemini_api_key || ""}
                   onChange={handleChange}
-                  placeholder="AIzaSy..." 
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-purple-500/50 transition-all font-mono text-sm placeholder:text-slate-600" 
+                  placeholder="AIzaSy..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-purple-500/50 transition-all font-mono text-sm placeholder:text-slate-600"
                 />
                 <p className="text-[10px] text-slate-500 px-1 italic">
                   Get your key at{" "}
@@ -311,7 +309,7 @@ export default function SettingsPage() {
                   <label className="text-sm font-medium text-slate-400">
                     LLM Provider <span className="text-[10px] text-slate-600">(Chat AI)</span>
                   </label>
-                  <select 
+                  <select
                     name="ai_provider"
                     value={settings.ai_provider}
                     onChange={handleChange}
@@ -325,7 +323,7 @@ export default function SettingsPage() {
                   <label className="text-sm font-medium text-slate-400">
                     TTS Provider <span className="text-[10px] text-slate-600">(Voice AI)</span>
                   </label>
-                  <select 
+                  <select
                     name="tts_provider"
                     value={settings.tts_provider}
                     onChange={handleChange}
@@ -341,7 +339,7 @@ export default function SettingsPage() {
               <div className="flex items-start gap-3 p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10">
                 <span className="text-blue-400">💡</span>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Settings are saved globally. Workers will use these values to communicate with AI services. 
+                  Settings are saved globally. Workers will use these values to communicate with AI services.
                   Note: Updating these will take effect on the next AI interaction or worker restart.
                 </p>
               </div>
@@ -369,24 +367,24 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">YouTube Handle</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     name="yt_channel_handle"
-                    value={settings.yt_channel_handle || ""} 
+                    value={settings.yt_channel_handle || ""}
                     onChange={handleChange}
-                    placeholder="@channel" 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-sm placeholder:text-slate-600" 
+                    placeholder="@channel"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-sm placeholder:text-slate-600"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm font-medium text-slate-400">YouTube Cookie (for Chat Polling)</label>
-                  <textarea 
+                  <textarea
                     name="yt_cookie"
-                    value={settings.yt_cookie || ""} 
+                    value={settings.yt_cookie || ""}
                     onChange={handleChange}
-                    placeholder="PASTE_COOKIE_HERE" 
+                    placeholder="PASTE_COOKIE_HERE"
                     rows={3}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-[10px] placeholder:text-slate-600 resize-none" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-[10px] placeholder:text-slate-600 resize-none"
                   />
                   <p className="text-[10px] text-slate-500 px-1 italic">
                     Cookies are required for restricted chats. Use a browser extension to export Netscape format or RAW cookies.
@@ -395,13 +393,13 @@ export default function SettingsPage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">App Base URL (Scheduler Worker)</label>
-                  <input 
+                  <input
                     type="text"
                     name="app_base_url"
-                    value={settings.app_base_url || ""} 
+                    value={settings.app_base_url || ""}
                     onChange={handleChange}
-                    placeholder="http://localhost:3000" 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600" 
+                    placeholder="http://localhost:3000"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600"
                   />
                   <p className="text-[10px] text-slate-500 px-1 italic">
                     URL aplikasi Next.js yang dipakai scheduler untuk memanggil start/stop session.
@@ -410,13 +408,13 @@ export default function SettingsPage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">Scheduler API Key</label>
-                  <input 
+                  <input
                     type="password"
                     name="scheduler_api_key"
-                    value={settings.scheduler_api_key || ""} 
+                    value={settings.scheduler_api_key || ""}
                     onChange={handleChange}
-                    placeholder="looplive-scheduler-internal-key" 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600" 
+                    placeholder="looplive-scheduler-internal-key"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-red-500/50 transition-all font-mono text-xs placeholder:text-slate-600"
                   />
                   <p className="text-[10px] text-slate-500 px-1 italic">
                     Kunci internal untuk worker scheduler otomatis.
@@ -425,23 +423,23 @@ export default function SettingsPage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">TikTok Handle</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     name="tiktok_channel_handle"
-                    value={settings.tiktok_channel_handle || ""} 
+                    value={settings.tiktok_channel_handle || ""}
                     onChange={handleChange}
-                    placeholder="@channel" 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all font-mono text-sm placeholder:text-slate-600" 
+                    placeholder="@channel"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all font-mono text-sm placeholder:text-slate-600"
                   />
                 </div>
                 <div className="space-y-2 md:col-span-1">
                   <label className="text-sm font-medium text-slate-400">Redis URL</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     name="redis_url"
-                    value={settings.redis_url} 
+                    value={settings.redis_url}
                     onChange={handleChange}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-blue-500/50 transition-all font-mono text-sm" 
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-blue-500/50 transition-all font-mono text-sm"
                   />
                 </div>
               </div>
@@ -457,32 +455,32 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div className="space-y-2 md:col-span-1">
                     <label className="text-sm font-medium text-slate-400">MediaMTX Host</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="mediamtx_host"
-                      value={settings.mediamtx_host} 
+                      value={settings.mediamtx_host}
                       onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all font-mono text-sm" 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all font-mono text-sm"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-400">RTMP Port</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       name="rtmp_port"
-                      value={settings.rtmp_port} 
+                      value={settings.rtmp_port}
                       onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all" 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-400">HLS Port</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       name="hls_port"
-                      value={settings.hls_port} 
+                      value={settings.hls_port}
                       onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all" 
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-green-500/50 transition-all"
                     />
                   </div>
                 </div>
@@ -503,18 +501,18 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">AI Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     name="ai_name"
-                    value={settings.ai_name} 
+                    value={settings.ai_name}
                     onChange={handleChange}
-                    placeholder="e.g. Loop" 
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-orange-500/50 transition-all" 
+                    placeholder="e.g. Loop"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-orange-500/50 transition-all"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">Default AI Tone</label>
-                  <select 
+                  <select
                     name="ai_tone_default"
                     value={settings.ai_tone_default}
                     onChange={handleChange}
@@ -533,7 +531,7 @@ export default function SettingsPage() {
                 <label className="text-sm font-medium text-slate-400">Global System Persona (Base Prompt)</label>
                 <textarea
                   name="ai_persona"
-                  value={settings.ai_persona || ""} 
+                  value={settings.ai_persona || ""}
                   onChange={handleChange}
                   rows={5}
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-orange-500/50 transition-all text-sm resize-none placeholder:text-slate-700"
@@ -543,12 +541,12 @@ export default function SettingsPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-400">Max Response Length (Tokens)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   name="max_response_length"
-                  value={settings.max_response_length} 
+                  value={settings.max_response_length}
                   onChange={handleChange}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-orange-500/50 transition-all" 
+                  className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-orange-500/50 transition-all"
                 />
                 <p className="text-[10px] text-slate-500 px-1">Lower = faster responses. Recommended: 80-200.</p>
               </div>
@@ -569,9 +567,9 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-400">Event Type</label>
-                    <select 
+                    <select
                       value={newSound.event_type}
-                      onChange={e => setNewSound(prev => ({ ...prev, event_type: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewSound((prev: any) => ({ ...prev, event_type: e.target.value }))}
                       className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all appearance-none cursor-pointer"
                     >
                       <option value="keyword">Chat Keyword (e.g. "hai")</option>
@@ -581,12 +579,12 @@ export default function SettingsPage() {
                   {newSound.event_type === "keyword" && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-slate-400">Keyword</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={newSound.keyword}
-                        onChange={e => setNewSound(prev => ({ ...prev, keyword: e.target.value }))}
-                        placeholder="hai" 
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all font-mono text-sm" 
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSound((prev: any) => ({ ...prev, keyword: e.target.value }))}
+                        placeholder="hai"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-slate-300 focus:outline-none focus:border-pink-500/50 transition-all font-mono text-sm"
                       />
                     </div>
                   )}
@@ -595,11 +593,11 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-400">Audio File (MP3/WAV)</label>
                   <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       ref={fileInputRef}
-                      onChange={e => setNewSound(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
-                      className="hidden" 
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewSound((prev: any) => ({ ...prev, file: e.target.files?.[0] || null }))}
+                      className="hidden"
                       accept="audio/*"
                     />
                     <div className="w-full bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 group-hover:border-pink-500/50 transition-all">
@@ -625,53 +623,53 @@ export default function SettingsPage() {
 
               {/* Sound List */}
               <div className="bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden backdrop-blur-xl">
-                 <div className="px-8 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
-                    <h4 className="text-sm font-bold text-white uppercase tracking-widest">Configured Sounds</h4>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-lg font-bold">{soundEvents.length} Events</span>
-                 </div>
-                 <div className="divide-y divide-slate-800">
-                    {soundEvents.length === 0 ? (
-                      <div className="p-12 text-center">
-                        <Music className="mx-auto text-slate-700 mb-3" size={32} />
-                        <p className="text-slate-500 text-sm">No custom sounds configured yet.</p>
-                      </div>
-                    ) : (
-                      soundEvents.map(sound => (
-                        <div key={sound.id} className="p-6 flex items-center justify-between hover:bg-slate-800/10 transition-colors">
-                           <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-xl bg-slate-900 flex items-center justify-center text-slate-500">
-                                 <Volume2 size={20} />
-                              </div>
-                              <div>
-                                 <div className="flex items-center gap-2">
-                                    <span className="text-white font-medium text-sm">
-                                       {sound.event_type === "keyword" ? `Keyword: "${sound.keyword}"` : "Event: Viewer Join"}
-                                    </span>
-                                    {!sound.active && (
-                                       <span className="text-[9px] bg-slate-950 text-slate-500 px-1.5 py-0.5 rounded border border-slate-800 font-bold uppercase tracking-widest">Disabled</span>
-                                    )}
-                                 </div>
-                                 <p className="text-[10px] text-slate-500 font-mono mt-0.5">{sound.audio_url}</p>
-                              </div>
-                           </div>
-                           <div className="flex items-center gap-3">
-                              <button 
-                                onClick={() => handleToggleSound(sound.id, !sound.active, sound.keyword)}
-                                className={`h-8 w-8 rounded-lg flex items-center justify-center transition-all ${sound.active ? 'text-green-400 hover:bg-green-500/10' : 'text-slate-600 hover:bg-slate-700'}`}
-                              >
-                                 {sound.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteSound(sound.id)}
-                                className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                              >
-                                 <Trash2 size={16} />
-                              </button>
-                           </div>
+                <div className="px-8 py-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
+                  <h4 className="text-sm font-bold text-white uppercase tracking-widest">Configured Sounds</h4>
+                  <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded-lg font-bold">{soundEvents.length} Events</span>
+                </div>
+                <div className="divide-y divide-slate-800">
+                  {soundEvents.length === 0 ? (
+                    <div className="p-12 text-center">
+                      <Music className="mx-auto text-slate-700 mb-3" size={32} />
+                      <p className="text-slate-500 text-sm">No custom sounds configured yet.</p>
+                    </div>
+                  ) : (
+                    soundEvents.map((sound: SoundEvent) => (
+                      <div key={sound.id} className="p-6 flex items-center justify-between hover:bg-slate-800/10 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 rounded-xl bg-slate-900 flex items-center justify-center text-slate-500">
+                            <Volume2 size={20} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white font-medium text-sm">
+                                {sound.event_type === "keyword" ? `Keyword: "${sound.keyword}"` : "Event: Viewer Join"}
+                              </span>
+                              {!sound.active && (
+                                <span className="text-[9px] bg-slate-950 text-slate-500 px-1.5 py-0.5 rounded border border-slate-800 font-bold uppercase tracking-widest">Disabled</span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">{sound.audio_url}</p>
+                          </div>
                         </div>
-                      ))
-                    )}
-                 </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleToggleSound(sound.id, !sound.active, sound.keyword)}
+                            className={`h-8 w-8 rounded-lg flex items-center justify-center transition-all ${sound.active ? 'text-green-400 hover:bg-green-500/10' : 'text-slate-600 hover:bg-slate-700'}`}
+                          >
+                            {sound.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSound(sound.id)}
+                            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -679,5 +677,6 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+
   );
 }

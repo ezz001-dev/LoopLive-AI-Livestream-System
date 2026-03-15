@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "./prisma";
 import { enqueueAudioEvent } from "./audio-event-manager";
 import { recordUsage } from "./usage";
+import { decrypt } from "./crypto";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
@@ -36,7 +37,7 @@ async function getTenantSecrets(tenantId: string) {
         where: { tenant_id: tenantId }
     });
     return secrets.reduce((acc: any, s: any) => {
-        acc[s.key] = s.encrypted_value; // In production, decrypt here
+        acc[s.key] = decrypt(s.encrypted_value);
         return acc;
     }, {});
 }

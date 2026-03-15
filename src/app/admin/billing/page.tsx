@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { CreditCard, Zap, Check, ArrowRight, ShieldCheck, BarChart3 } from "lucide-react";
+import { CreditCard, Zap, Check, ArrowRight, ShieldCheck, BarChart3, Settings } from "lucide-react";
+import UsageDashboard from "@/components/admin/UsageDashboard";
 
 export default function BillingPage() {
     const plans = [
@@ -39,25 +40,8 @@ export default function BillingPage() {
                 </div>
             </div>
 
-            {/* Current Usage */}
-            <section className="grid md:grid-cols-3 gap-6">
-                {[
-                    { label: "AI Usage", value: "8/10", suffix: "replies", icon: <Zap size={18} />, color: "yellow" },
-                    { label: "Storage", value: "0.4", suffix: "GB", icon: <BarChart3 size={18} />, color: "cyan" },
-                    { label: "Streams", value: "0/1", suffix: "active", icon: <CreditCard size={18} />, color: "emerald" },
-                ].map((stat) => (
-                    <div key={stat.label} className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6">
-                        <div className="flex items-center gap-3 text-slate-500 mb-4">
-                            {stat.icon}
-                            <span className="text-xs font-bold uppercase tracking-widest">{stat.label}</span>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-white">{stat.value}</span>
-                            <span className="text-xs font-bold text-slate-500 uppercase">{stat.suffix}</span>
-                        </div>
-                    </div>
-                ))}
-            </section>
+            {/* Real Usage Analytics */}
+            <UsageDashboard />
 
             {/* Scale Your Studio */}
             <div className="text-center py-12">

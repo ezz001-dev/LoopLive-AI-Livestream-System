@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { decrypt } from "./crypto";
 
 export type StorageProvider = "local" | "r2";
 
@@ -11,7 +12,7 @@ async function getTenantSecrets(tenantId: string) {
     where: { tenant_id: tenantId }
   });
   return secrets.reduce((acc: any, s: any) => {
-    acc[s.key] = s.encrypted_value;
+    acc[s.key] = decrypt(s.encrypted_value);
     return acc;
   }, {});
 }

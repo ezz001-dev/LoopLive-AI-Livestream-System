@@ -3,6 +3,7 @@ import { OpenAI } from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "./prisma";
 import { getLiveSessionTenantId } from "./tenant-context";
+import { decrypt } from "./crypto";
 import { recordUsage } from "./usage";
 import { checkPlanLimit } from "./limits";
 import * as dotenv from "dotenv";
@@ -32,7 +33,7 @@ async function getTenantSecrets(tenantId: string) {
         where: { tenant_id: tenantId }
     });
     return secrets.reduce((acc: any, s: any) => {
-        acc[s.key] = s.encrypted_value; // In production, decrypt here
+        acc[s.key] = decrypt(s.encrypted_value);
         return acc;
     }, {});
 }

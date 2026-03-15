@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentTenantId } from "@/lib/tenant-context";
 import { logAudit } from "@/lib/audit";
 import { getAuthSession } from "@/lib/auth-session";
+import { encrypt, decrypt } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +31,15 @@ export async function GET() {
     });
 
     // 3. Merge for frontend compatibility
+    // We decrypt only to check if value exists, but return masked values for security in GET
     const secretMap = secrets.reduce((acc: any, s: any) => {
-      acc[s.key] = s.encrypted_value; // Note: In production we should decrypt here
+      const decrypted = decrypt(s.encrypted_value);
+      if (decrypted) {
+        // Mask: keep last 4 characters, or just return placeholder if set
+        acc[s.key] = decrypted.length > 8 
+          ? `****${decrypted.slice(-4)}` 
+          : "********";
+      }
       return acc;
     }, {});
 
@@ -105,6 +113,11 @@ export async function PATCH(request: Request) {
 
     // 2. Update/Upsert Tenant Secrets
     for (const secret of secretsUpdate) {
+      // If the incoming value is masked (contains **** or is placeholder), skip update
+      if (secret.value.includes("****") || secret.value === "********") continue;
+
+      const encrypted = encrypt(secret.value);
+
       await (prisma as any).tenant_secrets.upsert({
         where: {
           tenant_id_key: {
@@ -112,19 +125,17 @@ export async function PATCH(request: Request) {
             key: secret.key,
           },
         },
-        update: { encrypted_value: secret.value }, // Note: In production we should encrypt here
+        update: { encrypted_value: encrypted },
         create: {
           tenant_id: tenantId,
           key: secret.key,
-          encrypted_value: secret.value,
+          encrypted_value: encrypted,
         },
       });
     }
 
-    // 3. Optional: Sync back to global if needed (for legacy workers), but we'll skip for now
-    // to force worker migration next.
-
-    // to force worker migration next.
+    // 3. Sync back to global if needed (for legacy workers), but we'll skip for now
+    // as we have updated the primary workers to be tenant-aware.
 
     // --- Audit Log ---
     const authSession = await getAuthSession();
