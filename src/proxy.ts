@@ -9,7 +9,10 @@ function isProtectedPath(pathname: string) {
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/api/auth");
   const isAdminRoute = pathname.startsWith("/admin");
   const isOpsRoute = pathname.startsWith("/ops");
-  const isProtectedApiRoute = pathname.startsWith("/api/live") || pathname.startsWith("/api/videos");
+  const isProtectedApiRoute =
+    pathname.startsWith("/api/live") ||
+    pathname.startsWith("/api/videos") ||
+    pathname.startsWith("/api/ops");
   const isYouTubeIdRoute = pathname.match(/\/api\/live\/[^\/]+\/youtube-id$/);
 
   return { isAuthRoute, isAdminRoute, isOpsRoute, isProtectedApiRoute, isYouTubeIdRoute };
@@ -230,5 +233,5 @@ export async function proxy(request: NextRequest) {
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: ["/admin/:path*", "/ops/:path*", "/api/live/:path*", "/api/videos/:path*", "/login"],
+  matcher: ["/admin/:path*", "/ops/:path*", "/api/live/:path*", "/api/videos/:path*", "/api/ops/:path*", "/login"],
 };

@@ -41,3 +41,13 @@ export async function getAuthSession(): Promise<AuthTokenPayload | null> {
     return null;
   }
 }
+
+export async function requireInternalOpsSession() {
+  const session = await getAuthSession();
+
+  if (!session || !session.canAccessOps) {
+    return null;
+  }
+
+  return session;
+}
