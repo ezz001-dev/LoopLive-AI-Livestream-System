@@ -25,6 +25,8 @@ model tenants {
   videos        videos[]
   live_sessions live_sessions[]
   sound_events  sound_events[]
+  settings      tenant_settings?
+  secrets       tenant_secrets[]
 }
 
 model users {
@@ -220,4 +222,38 @@ model sound_events {
   updated_at DateTime @updatedAt
 
   @@index([tenant_id, active])
+}
+
+model tenant_settings {
+  id                         String   @id @default(uuid())
+  tenant_id                  String   @unique
+  ai_provider                String   @default("openai")
+  tts_provider               String   @default("openai")
+  yt_channel_handle          String?
+  tiktok_channel_handle      String?
+  ai_name                    String   @default("Loop")
+  ai_persona                 String?  @db.Text
+  ai_tone_default            String   @default("friendly")
+  max_response_length        Int      @default(150)
+  storage_provider           String   @default("r2")
+  r2_public_url              String?
+  r2_signed_reads            Boolean  @default(false)
+  r2_signed_read_ttl_seconds Int      @default(43200)
+  default_loop_mode          String   @default("infinite")
+  updated_at                 DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+model tenant_secrets {
+  id              String   @id @default(uuid())
+  tenant_id       String
+  key             String
+  encrypted_value String
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, key])
 }

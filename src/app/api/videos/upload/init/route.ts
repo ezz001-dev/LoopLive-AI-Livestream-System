@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { createPresignedVideoUploadUrl, createVideoUploadDraft } from "@/lib/storage";
 import { getStorageProvider } from "@/lib/storage-config";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function POST(req: Request) {
   try {
+    const tenantId = await getCurrentTenantId();
     const { filename, fileType, fileSize } = await req.json();
 
     if (!filename || typeof filename !== "string") {
@@ -21,9 +23,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "fileSize must be a positive number" }, { status: 400 });
     }
 
-    const draft = createVideoUploadDraft({ filename, fileType, fileSize });
+    const draft = await createVideoUploadDraft({ filename, fileType, fileSize, tenantId });
 
-    if (getStorageProvider() !== "r2") {
+    if ((await getStorageProvider(tenantId)) !== "r2") {
       return NextResponse.json({
         uploadStrategy: "server-proxy",
         storageProvider: draft.storageProvider,

@@ -74,9 +74,10 @@ export async function getCurrentTenantId() {
 
 export async function getTenantScopedLiveSession(
   liveSessionId: string,
-  options?: Record<string, unknown>
+  options?: Record<string, unknown>,
+  tenantIdOverride?: string
 ) {
-  const tenantId = await getCurrentTenantId();
+  const tenantId = tenantIdOverride || await getCurrentTenantId();
 
   return (prisma.live_sessions as any).findFirst({
     where: {
@@ -89,9 +90,10 @@ export async function getTenantScopedLiveSession(
 
 export async function getTenantScopedVideo(
   videoId: string,
-  options?: Record<string, unknown>
+  options?: Record<string, unknown>,
+  tenantIdOverride?: string
 ) {
-  const tenantId = await getCurrentTenantId();
+  const tenantId = tenantIdOverride || await getCurrentTenantId();
 
   return (prisma.videos as any).findFirst({
     where: {

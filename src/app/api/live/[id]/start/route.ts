@@ -3,13 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
 import { getYouTubeLiveVideoId } from "@/lib/youtube-detect";
 import { resolveVideoInputSource } from "@/lib/storage";
-import { getTenantScopedLiveSession } from "@/lib/tenant-context";
+import { getTenantScopedLiveSession, getLiveSessionTenantId } from "@/lib/tenant-context";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-// Redis is initialized per-request to use dynamic settings
+async function getTenantSettings(tenantId: string) {
+    return (prisma as any).tenant_settings.findUnique({ where: { tenant_id: tenantId } });
+}
 
 export async function POST(
     req: Request,
@@ -17,22 +19,35 @@ export async function POST(
 ) {
     try {
         const id = (await params).id;
+        const schedulerKey = req.headers.get("x-scheduler-key");
 
-        const settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
-        const redisUrl = settings?.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
+        const systemSettings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+        const redisUrl = systemSettings?.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
         const redisPub = new Redis(redisUrl);
 
-        const session = await getTenantScopedLiveSession(id, {
-            include: { video: true }
-        });
+        let session;
+        let tenantId;
 
-        if (!session) {
-            return NextResponse.json({ error: "Live session not found" }, { status: 404 });
+        if (schedulerKey && schedulerKey === systemSettings?.scheduler_api_key) {
+            tenantId = await getLiveSessionTenantId(id);
+            if (!tenantId) {
+                return NextResponse.json({ error: "Live session has no tenant association" }, { status: 400 });
+            }
+            session = await getTenantScopedLiveSession(id, { include: { video: true } }, tenantId);
+        } else {
+            session = await getTenantScopedLiveSession(id, { include: { video: true } });
+            tenantId = session?.tenant_id;
+        }
+
+        if (!session || !tenantId) {
+            return NextResponse.json({ error: "Live session not found or access denied" }, { status: 404 });
         }
 
         if (session.status === "LIVE") {
             return NextResponse.json({ error: "Stream is already live" }, { status: 400 });
         }
+
+        const tSettings = await getTenantSettings(tenantId);
 
         // Update status to LIVE
         await prisma.live_sessions.update({
@@ -48,8 +63,6 @@ export async function POST(
         const videoSource = await resolveVideoInputSource(session.video);
 
         // Construct RTMP destination.
-        // Direct platform RTMP is the preferred path; MediaMTX remains an internal fallback.
-        const systemSettings = await prisma.system_settings.findUnique({ where: { id: "1" } });
         const mediamtxHost = systemSettings?.mediamtx_host || "localhost";
         const rtmpPort = systemSettings?.rtmp_port || 1935;
 
@@ -57,12 +70,8 @@ export async function POST(
         let rtmpUrl = `rtmp://${mediamtxHost}:${rtmpPort}/live/${id}`;
         if (session.target_rtmp_url) {
             let baseUrl = session.target_rtmp_url;
-            // Ensure trailing slash if not present
             if (!baseUrl.endsWith("/")) baseUrl += "/";
             rtmpUrl = `${baseUrl}${session.stream_key || ""}`;
-            console.log(`[Start API] Using external RTMP destination: ${rtmpUrl.split(session.stream_key || "SECRET")[0]}***`);
-        } else {
-            console.log(`[Start API] No platform RTMP configured. Falling back to internal MediaMTX: ${rtmpUrl}`);
         }
 
         try {
@@ -74,30 +83,22 @@ export async function POST(
             });
         } catch (err: any) {
             console.error("[WorkerManager] Failed to start:", err);
-
             await prisma.live_sessions.update({ where: { id }, data: { status: "IDLE" } });
             return NextResponse.json({ error: `Failed to start stream worker: ${err.message}` }, { status: 500 });
         }
 
         // Start YouTube Chat Poller
-        // Priority: 1) session.youtube_video_id (manual), 2) Auto-detect from settings in DB
         let youtubeVideoId = session.youtube_video_id || null;
 
         if (!youtubeVideoId) {
-            const settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
-            const ytHandle = settings?.yt_channel_handle;
-
+            const ytHandle = tSettings?.yt_channel_handle;
             if (ytHandle) {
-                console.log(`[Start API] No Video ID on session — auto-detecting from channel: ${ytHandle}`);
                 youtubeVideoId = await getYouTubeLiveVideoId(ytHandle);
-
-                // Save the detected video ID to session so stop/other features can use it
                 if (youtubeVideoId) {
                     await prisma.live_sessions.update({
                         where: { id },
                         data: { youtube_video_id: youtubeVideoId }
                     });
-                    console.log(`[Start API] Auto-detected and saved Video ID: ${youtubeVideoId}`);
                 }
             }
         }
@@ -108,12 +109,8 @@ export async function POST(
                 liveSessionId: id,
                 youtubeVideoId
             }));
-            console.log(`[Start API] YouTube Chat Poller started for video: ${youtubeVideoId}`);
-        } else {
-            console.log(`[Start API] No YouTube Video ID available — skipping YouTube chat polling.`);
         }
 
-        console.log(`[Worker System] Loop Worker started for session: ${id} (${videoSource.storageProvider}:${videoSource.isRemote ? "remote" : "local"})`);
         return NextResponse.json({ status: "LIVE" });
 
     } catch (error) {

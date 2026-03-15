@@ -8,6 +8,7 @@ import {
   getR2SignedReadTtlSeconds,
   getStorageProvider,
   isSignedR2ReadEnabled,
+  getTenantR2Config,
   type StorageProvider,
 } from "@/lib/storage-config";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -33,6 +34,7 @@ export type VideoUploadDraft = {
   storageKey: string | null;
   filePath: string;
   publicUrl: string | null;
+  tenantId?: string;
 };
 
 export type VideoInputSource = {
@@ -81,9 +83,9 @@ async function uploadToLocal(file: File, objectKey: string): Promise<UploadedAss
   };
 }
 
-async function uploadToR2(file: File, objectKey: string): Promise<UploadedAsset> {
-  const env = assertR2Env();
-  const client = createR2Client();
+async function uploadToR2(file: File, objectKey: string, tenantId: string): Promise<UploadedAsset> {
+  const env = await assertR2Env(tenantId);
+  const client = await createR2Client(tenantId);
 
   await client.send(new PutObjectCommand({
     Bucket: env.bucketName,
@@ -106,16 +108,17 @@ async function uploadToR2(file: File, objectKey: string): Promise<UploadedAsset>
   };
 }
 
-export async function uploadVideoAsset(file: File) {
-  const draft = createVideoUploadDraft({
+export async function uploadVideoAsset(file: File, tenantId?: string) {
+  const draft = await createVideoUploadDraft({
     filename: file.name,
     fileType: file.type,
     fileSize: file.size,
+    tenantId,
   });
 
   const uploaded =
     draft.storageProvider === "r2"
-      ? await uploadToR2(file, draft.storageKey!)
+      ? await uploadToR2(file, draft.storageKey!, tenantId!)
       : await uploadToLocal(file, draft.storageKey!);
 
   return {
@@ -124,19 +127,20 @@ export async function uploadVideoAsset(file: File) {
   };
 }
 
-export function createVideoUploadDraft(input: {
+export async function createVideoUploadDraft(input: {
   filename: string;
   fileType: string;
   fileSize: number | bigint;
+  tenantId?: string;
 }) {
   const assetId = crypto.randomUUID();
-  const provider = getStorageProvider();
+  const provider = await getStorageProvider(input.tenantId);
   const objectKey = buildObjectKey("videos", assetId, input.filename);
   const normalizedSize =
     typeof input.fileSize === "bigint" ? input.fileSize : BigInt(input.fileSize);
 
   if (provider === "r2") {
-    const env = assertR2Env();
+    const env = await assertR2Env(input.tenantId);
     const publicUrl = normalizePublicUrl(env.publicUrl, objectKey);
 
     return {
@@ -148,6 +152,7 @@ export function createVideoUploadDraft(input: {
       storageKey: objectKey,
       filePath: publicUrl,
       publicUrl,
+      tenantId: input.tenantId,
     } satisfies VideoUploadDraft;
   }
 
@@ -160,11 +165,12 @@ export function createVideoUploadDraft(input: {
     storageKey: objectKey,
     filePath: `/videos/${path.basename(objectKey)}`,
     publicUrl: null,
+    tenantId: input.tenantId,
   } satisfies VideoUploadDraft;
 }
 
-function createR2Client() {
-  const env = assertR2Env();
+async function createR2Client(tenantId?: string) {
+  const env = await assertR2Env(tenantId);
 
   return new S3Client({
     region: "auto",
@@ -181,8 +187,8 @@ export async function createPresignedVideoUploadUrl(draft: VideoUploadDraft) {
     throw new Error("Presigned upload is only available for R2 storage");
   }
 
-  const env = assertR2Env();
-  const client = createR2Client();
+  const env = await assertR2Env(draft.tenantId);
+  const client = await createR2Client(draft.tenantId);
 
   const command = new PutObjectCommand({
     Bucket: env.bucketName,
@@ -199,8 +205,8 @@ export async function verifyUploadedVideoObject(draft: VideoUploadDraft) {
     return;
   }
 
-  const env = assertR2Env();
-  const client = createR2Client();
+  const env = await assertR2Env(draft.tenantId);
+  const client = await createR2Client(draft.tenantId);
   const object = await client.send(new HeadObjectCommand({
     Bucket: env.bucketName,
     Key: draft.storageKey,
@@ -212,9 +218,9 @@ export async function verifyUploadedVideoObject(draft: VideoUploadDraft) {
   }
 }
 
-export async function createSignedVideoReadUrl(storageKey: string) {
-  const env = assertR2Env();
-  const client = createR2Client();
+export async function createSignedVideoReadUrl(storageKey: string, tenantId?: string) {
+  const env = await assertR2Env(tenantId);
+  const client = await createR2Client(tenantId);
 
   return getSignedUrl(
     client,
@@ -222,7 +228,7 @@ export async function createSignedVideoReadUrl(storageKey: string) {
       Bucket: env.bucketName,
       Key: storageKey,
     }),
-    { expiresIn: getR2SignedReadTtlSeconds() }
+    { expiresIn: await getR2SignedReadTtlSeconds(tenantId) }
   );
 }
 
@@ -230,10 +236,11 @@ export async function deleteStoredVideoAsset(video: {
   file_path: string;
   storage_key?: string | null;
   storage_provider?: string | null;
+  tenant_id?: string | null;
 }) {
   if (video.storage_provider === "r2" && video.storage_key) {
-    const env = assertR2Env();
-    const client = createR2Client();
+    const env = await assertR2Env(video.tenant_id || undefined);
+    const client = await createR2Client(video.tenant_id || undefined);
 
     await client.send(
       new DeleteObjectCommand({
@@ -278,13 +285,14 @@ export async function resolveVideoInputSource(video: {
   storage_key?: string | null;
   storage_provider?: string | null;
   public_url?: string | null;
+  tenant_id?: string | null;
 }) {
-  const storageProvider = video.storage_provider === "r2" ? "r2" : "local";
+  const storageProvider = (video.storage_provider === "r2" ? "r2" : "local") as StorageProvider;
 
   if (video.storage_provider === "r2") {
     const input =
-      isSignedR2ReadEnabled() && video.storage_key
-        ? await createSignedVideoReadUrl(video.storage_key)
+      (await isSignedR2ReadEnabled(video.tenant_id || undefined)) && video.storage_key
+        ? await createSignedVideoReadUrl(video.storage_key, video.tenant_id || undefined)
         : video.public_url || video.file_path;
 
     await validateRemoteVideoInput(input);

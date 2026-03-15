@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Uploaded file is not a valid video" }, { status: 400 });
     }
 
-    const uploadedAsset = await uploadVideoAsset(file);
+    const uploadedAsset = await uploadVideoAsset(file, tenantId);
 
     // Save to Database
     const savedVideo = await (prisma.videos as any).create({
@@ -93,8 +93,8 @@ export async function GET() {
     });
     return NextResponse.json({
       items: videos.map(serializeVideo),
-      storageProvider: getStorageProvider(),
-      r2Enabled: isR2StorageEnabled(),
+      storageProvider: await getStorageProvider(tenantId),
+      r2Enabled: await isR2StorageEnabled(tenantId),
     });
   } catch (error) {
     console.error("Get Videos Error:", error);

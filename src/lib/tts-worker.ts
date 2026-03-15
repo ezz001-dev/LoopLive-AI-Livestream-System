@@ -15,22 +15,29 @@ if (!fs.existsSync(AUDIO_DIR)) {
     fs.mkdirSync(AUDIO_DIR, { recursive: true });
 }
 
-console.log(`[TTS-Worker] Starting TTS Worker with Dynamic DB Settings...`);
+console.log(`[TTS-Worker] Starting TTS Worker with Tenant-Scoped Settings...`);
 
-async function getSystemSettings() {
-    let settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+async function getTenantSettings(tenantId: string) {
+    let settings = await (prisma as any).tenant_settings.findUnique({ where: { tenant_id: tenantId } });
     if (!settings) {
-        settings = await prisma.system_settings.create({
+        settings = await (prisma as any).tenant_settings.create({
             data: {
-                id: "1",
+                tenant_id: tenantId,
                 tts_provider: process.env.TTS_PROVIDER || "openai",
-                openai_api_key: process.env.OPENAI_API_KEY,
-                gemini_api_key: process.env.GEMINI_API_KEY,
-                redis_url: process.env.REDIS_URL || "redis://localhost:6379"
             }
         });
     }
     return settings;
+}
+
+async function getTenantSecrets(tenantId: string) {
+    const secrets = await (prisma as any).tenant_secrets.findMany({
+        where: { tenant_id: tenantId }
+    });
+    return secrets.reduce((acc: any, s: any) => {
+        acc[s.key] = s.encrypted_value; // In production, decrypt here
+        return acc;
+    }, {});
 }
 
 // --- Provider Implementations ---
@@ -48,7 +55,7 @@ async function ttsWithOpenAI(text: string, filepath: string, apiKey: string) {
 
 async function ttsWithGemini(text: string, filepath: string, apiKey: string) {
     const geminiAI = new GoogleGenerativeAI(apiKey);
-    const model = geminiAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // or whichever model supports TTS
+    const model = geminiAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: text }] }],
@@ -86,15 +93,12 @@ let redisPub: Redis;
 let redisSub: Redis;
 
 async function startWorker() {
-    const settings = await getSystemSettings();
-    const redisUrl = settings.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
+    const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
     
     redisPub = new Redis(redisUrl);
     redisSub = new Redis(redisUrl);
 
     console.log(`[TTS-Worker] Starting TTS Worker on Redis: ${redisUrl}`);
-
-    // --- Main Message Handler ---
 
     redisSub.subscribe("ai_voice_play", (err, count) => {
         if (err) {
@@ -109,34 +113,39 @@ async function startWorker() {
 
         try {
             const data = JSON.parse(message);
-            const { liveId, text, replyId } = data;
+            const { liveId, tenantId, text, replyId } = data;
 
             if (!liveId || !text || !replyId) return;
 
             const filename = `${replyId}.mp3`;
             const filepath = path.join(AUDIO_DIR, filename);
 
-            const latestSettings = await getSystemSettings();
-            const provider = latestSettings.tts_provider;
+            if (!tenantId) {
+                console.warn(`[TTS-Worker] Event for session ${liveId} missing tenantId. Fallback to global env keys.`);
+            }
+
+            const settings = tenantId ? await getTenantSettings(tenantId) : null;
+            const secrets = tenantId ? await getTenantSecrets(tenantId) : {};
+            
+            const provider = settings?.tts_provider || process.env.TTS_PROVIDER || "openai";
             
             let success = false;
 
-            // Try selected provider
             if (provider === "gemini") {
                 try {
-                    const apiKey = latestSettings.gemini_api_key || process.env.GEMINI_API_KEY || "";
+                    const apiKey = secrets.gemini_api_key || process.env.GEMINI_API_KEY || "";
                     await ttsWithGemini(text, filepath, apiKey);
                     success = true;
-                    console.log(`[TTS-Worker] ✅ Gemini TTS succeeded`);
+                    console.log(`[TTS-Worker] ✅ Gemini TTS succeeded for tenant ${tenantId}`);
                 } catch (error: any) {
                     console.error(`[TTS-Worker] ❌ Gemini TTS failed: ${error.message}`);
                 }
             } else if (provider === "openai") {
                 try {
-                    const apiKey = latestSettings.openai_api_key || process.env.OPENAI_API_KEY || "";
+                    const apiKey = secrets.openai_api_key || process.env.OPENAI_API_KEY || "";
                     await ttsWithOpenAI(text, filepath, apiKey);
                     success = true;
-                    console.log(`[TTS-Worker] ✅ OpenAI TTS succeeded`);
+                    console.log(`[TTS-Worker] ✅ OpenAI TTS succeeded for tenant ${tenantId}`);
                 } catch (error: any) {
                     console.error(`[TTS-Worker] ❌ OpenAI TTS failed: ${error.message}`);
                 }
@@ -150,22 +159,18 @@ async function startWorker() {
                 }
             }
 
-            // Fallback to Edge if others failed
+            // Fallback
             if (!success && provider !== "edge") {
                 console.log(`[TTS-Worker] 🔄 Trying Edge TTS fallback...`);
                 try {
                     await ttsWithEdge(text, filepath);
                     success = true;
-                    console.log(`[TTS-Worker] ✅ Edge TTS fallback succeeded`);
                 } catch (e: any) {
                     console.error(`[TTS-Worker] ❌ Edge TTS fallback failed: ${e.message}`);
                 }
             }
 
-            if (!success) {
-                console.error(`[TTS-Worker] All TTS providers failed for reply ${replyId}`);
-                return;
-            }
+            if (!success) return;
 
             const relativeAudioUrl = `/audio/${filename}`;
             await prisma.ai_reply_logs.update({
@@ -180,15 +185,12 @@ async function startWorker() {
                 text
             }));
 
-            const { queueLength } = await enqueueAudioEvent({
+            await enqueueAudioEvent({
                 liveId,
                 type: "tts",
                 audioPath: relativeAudioUrl,
-                metadata: {
-                    replyId,
-                },
+                metadata: { replyId },
             });
-            console.log(`[TTS-Worker] Queued TTS audio for ${liveId} (queue=${queueLength})`);
 
         } catch (error: any) {
             console.error("[TTS-Worker] Error processing TTS event:", error.message);

@@ -8,24 +8,31 @@ import axios from "axios";
 
 dotenv.config();
 
-async function getSystemSettings() {
-    let settings = await prisma.system_settings.findUnique({ where: { id: "1" } });
+async function getTenantSettings(tenantId: string) {
+    let settings = await (prisma as any).tenant_settings.findUnique({ where: { tenant_id: tenantId } });
     if (!settings) {
-        // Fallback to defaults/env if not in DB yet
-        settings = await prisma.system_settings.create({
+        // Fallback to defaults if tenant settings not initialized
+        settings = await (prisma as any).tenant_settings.create({
             data: {
-                id: "1",
+                tenant_id: tenantId,
                 ai_provider: process.env.AI_PROVIDER || "openai",
-                openai_api_key: process.env.OPENAI_API_KEY,
-                gemini_api_key: process.env.GEMINI_API_KEY,
                 ai_name: "Loop",
                 ai_persona: "You are an AI Livestreamer named Loop. Respond to followers in a way that is engaging and keeps the conversation flowing.",
                 max_response_length: 150,
-                redis_url: process.env.REDIS_URL || "redis://localhost:6379"
             }
         });
     }
     return settings;
+}
+
+async function getTenantSecrets(tenantId: string) {
+    const secrets = await (prisma as any).tenant_secrets.findMany({
+        where: { tenant_id: tenantId }
+    });
+    return secrets.reduce((acc: any, s: any) => {
+        acc[s.key] = s.encrypted_value; // In production, decrypt here
+        return acc;
+    }, {});
 }
 
 // Simple Context Fetcher
@@ -77,7 +84,10 @@ async function shouldSkipTtsForMessage(liveId: string, viewerMessage: string) {
 }
 
 async function generateReply(session: any, viewerMessage: string, viewerId: string) {
-    const settings = await getSystemSettings();
+    const tenantId = session.tenant_id;
+    const settings = await getTenantSettings(tenantId);
+    const secrets = await getTenantSecrets(tenantId);
+    
     const provider = settings.ai_provider;
 
     const recentChats = session.chat_logs
@@ -105,8 +115,8 @@ ${recentChats}
     const maxTokens = settings.max_response_length || 150;
 
     if (provider === "gemini") {
-        console.log("[AI-Worker] Calling Google Gemini...");
-        const apiKey = settings.gemini_api_key || process.env.GEMINI_API_KEY || "";
+        console.log(`[AI-Worker][Tenant:${tenantId}] Calling Google Gemini...`);
+        const apiKey = secrets.gemini_api_key || process.env.GEMINI_API_KEY || "";
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
             model: "gemini-2.5-flash",
@@ -115,8 +125,8 @@ ${recentChats}
         const result = await model.generateContent(userInput);
         return result.response.text();
     } else {
-        console.log("[AI-Worker] Calling OpenAI...");
-        const apiKey = settings.openai_api_key || process.env.OPENAI_API_KEY || "";
+        console.log(`[AI-Worker][Tenant:${tenantId}] Calling OpenAI...`);
+        const apiKey = secrets.openai_api_key || process.env.OPENAI_API_KEY || "";
         const openai = new OpenAI({ apiKey });
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
@@ -134,8 +144,8 @@ let redisPub: Redis;
 let redisSub: Redis;
 
 async function startWorker() {
-    const settings = await getSystemSettings();
-    const redisUrl = settings.redis_url || process.env.REDIS_URL || "redis://localhost:6379";
+    // Redis URL remains global/infra-level
+    const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
     redisPub = new Redis(redisUrl);
     redisSub = new Redis(redisUrl);
@@ -194,12 +204,15 @@ async function startWorker() {
 
             const skipTts = await shouldSkipTtsForMessage(liveId, viewerMessage);
 
+            const tenantId = session.tenant_id;
+
             if (skipTts) {
                 console.log(`[AI-Worker][TTS-SKIP] TTS suppressed for reply ${aiReply.id} in session ${liveId}`);
             } else {
                 // Trigger TTS only when no keyword sound effect handled the interaction.
                 await redisPub.publish("ai_voice_play", JSON.stringify({
                     liveId,
+                    tenantId,
                     text: replyText,
                     replyId: aiReply.id
                 }));

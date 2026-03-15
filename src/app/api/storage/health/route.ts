@@ -6,12 +6,13 @@ import {
   getStorageProvider,
   isSignedR2ReadEnabled,
 } from "@/lib/storage-config";
+import { getCurrentTenantId } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-function createR2Client() {
-  const env = assertR2Env();
+async function createR2Client(tenantId: string) {
+  const env = await assertR2Env(tenantId);
 
   return new S3Client({
     region: "auto",
@@ -24,7 +25,8 @@ function createR2Client() {
 }
 
 export async function GET() {
-  const provider = getStorageProvider();
+  const tenantId = await getCurrentTenantId();
+  const provider = await getStorageProvider(tenantId);
 
   if (provider !== "r2") {
     return NextResponse.json({
@@ -35,8 +37,8 @@ export async function GET() {
   }
 
   try {
-    const env = assertR2Env();
-    const client = createR2Client();
+    const env = await assertR2Env(tenantId);
+    const client = await createR2Client(tenantId);
 
     await client.send(new HeadBucketCommand({
       Bucket: env.bucketName,
@@ -48,8 +50,8 @@ export async function GET() {
       bucket: env.bucketName,
       endpoint: env.endpoint,
       publicUrl: env.publicUrl,
-      signedReads: isSignedR2ReadEnabled(),
-      signedReadTtlSeconds: getR2SignedReadTtlSeconds(),
+      signedReads: await isSignedR2ReadEnabled(tenantId),
+      signedReadTtlSeconds: await getR2SignedReadTtlSeconds(tenantId),
     });
   } catch (error: any) {
     console.error("[Storage Health] R2 health check failed:", error);
