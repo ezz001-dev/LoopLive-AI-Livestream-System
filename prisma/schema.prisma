@@ -27,6 +27,9 @@ model tenants {
   sound_events  sound_events[]
   settings      tenant_settings?
   secrets       tenant_secrets[]
+  subscriptions subscriptions[]
+  usage_records usage_records[]
+  audit_logs     audit_logs[]
 }
 
 model users {
@@ -38,7 +41,8 @@ model users {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  tenants tenant_users[]
+  tenants    tenant_users[]
+  audit_logs audit_logs[]
 }
 
 model tenant_users {
@@ -256,4 +260,48 @@ model tenant_secrets {
   tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@unique([tenant_id, key])
+}
+
+model subscriptions {
+  id                       String   @id @default(uuid())
+  tenant_id                String
+  plan_code                String
+  status                   String   @default("trialing")
+  billing_provider         String?
+  billing_customer_id      String?
+  billing_subscription_id  String?
+  trial_ends_at            DateTime?
+  current_period_end       DateTime?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+model usage_records {
+  id           String   @id @default(uuid())
+  tenant_id    String
+  metric       String
+  quantity     Decimal  @db.Decimal(18, 4)
+  period_start DateTime
+  period_end   DateTime
+  metadata     Json?
+  created_at   DateTime @default(now())
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+model audit_logs {
+  id            String   @id @default(uuid())
+  tenant_id     String?
+  actor_user_id String?
+  actor_type    String
+  action        String
+  target_type   String
+  target_id     String?
+  metadata      Json?
+  created_at    DateTime @default(now())
+
+  tenant tenants? @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   users?   @relation(fields: [actor_user_id], references: [id], onDelete: SetNull)
 }

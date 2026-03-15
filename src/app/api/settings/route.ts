@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenantId } from "@/lib/tenant-context";
+import { logAudit } from "@/lib/audit";
+import { getAuthSession } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
 
@@ -121,6 +123,23 @@ export async function PATCH(request: Request) {
 
     // 3. Optional: Sync back to global if needed (for legacy workers), but we'll skip for now
     // to force worker migration next.
+
+    // to force worker migration next.
+
+    // --- Audit Log ---
+    const authSession = await getAuthSession();
+    await logAudit({
+      tenantId,
+      actorUserId: authSession?.userId,
+      actorType: "user",
+      action: "UPDATE_SETTINGS",
+      targetType: "tenant_settings",
+      targetId: tenantId,
+      metadata: {
+        fieldsUpdated: Object.keys(settingsUpdate),
+        secretsUpdated: secretsUpdate.map(s => s.key)
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

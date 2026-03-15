@@ -4,6 +4,8 @@ import { workerManager } from "@/lib/worker-manager";
 import { getYouTubeLiveVideoId } from "@/lib/youtube-detect";
 import { resolveVideoInputSource } from "@/lib/storage";
 import { getTenantScopedLiveSession, getLiveSessionTenantId } from "@/lib/tenant-context";
+import { logAudit } from "@/lib/audit";
+import { getAuthSession } from "@/lib/auth-session";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +55,22 @@ export async function POST(
         await prisma.live_sessions.update({
             where: { id },
             data: { status: "LIVE" }
+        });
+
+        // --- Audit Log ---
+        const authSession = await getAuthSession();
+        await logAudit({
+            tenantId,
+            actorUserId: authSession?.userId,
+            actorType: schedulerKey ? "system" : "user",
+            action: "START_STREAM",
+            targetType: "live_session",
+            targetId: id,
+            metadata: {
+                triggeredBy: schedulerKey ? "scheduler" : "manual",
+                videoTitle: session.video?.filename,
+                rtmpTarget: session.target_rtmp_url || "internal"
+            }
         });
 
         if (!session.video) {

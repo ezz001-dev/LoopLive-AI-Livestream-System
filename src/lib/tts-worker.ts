@@ -3,6 +3,7 @@ import { OpenAI } from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "./prisma";
 import { enqueueAudioEvent } from "./audio-event-manager";
+import { recordUsage } from "./usage";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import * as path from "path";
@@ -171,6 +172,16 @@ async function startWorker() {
             }
 
             if (!success) return;
+
+            // --- Record Usage ---
+            if (tenantId) {
+                const estimatedSeconds = Math.max(1, Math.ceil(text.length / 15));
+                await recordUsage(tenantId, "tts_seconds", estimatedSeconds, {
+                    replyId,
+                    provider,
+                    charCount: text.length
+                });
+            }
 
             const relativeAudioUrl = `/audio/${filename}`;
             await prisma.ai_reply_logs.update({

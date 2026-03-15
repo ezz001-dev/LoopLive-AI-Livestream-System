@@ -3,6 +3,7 @@ import { OpenAI } from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "./prisma";
 import { getLiveSessionTenantId } from "./tenant-context";
+import { recordUsage } from "./usage";
 import * as dotenv from "dotenv";
 import axios from "axios";
 
@@ -180,6 +181,7 @@ async function startWorker() {
             }
 
             // 2. Generate Reply
+            const tenantId = session.tenant_id;
             const replyText = await generateReply(session, viewerMessage, viewerId);
             console.log(`[AI-Worker] AI Reply: ${replyText}`);
 
@@ -193,6 +195,15 @@ async function startWorker() {
                 }
             });
 
+            // --- Record Usage ---
+            if (tenantId) {
+                await recordUsage(tenantId, "ai_responses", 1, {
+                    replyId: aiReply.id,
+                    provider: session.ai_provider, // Note: actually need to get this from settings if we want to be precise, but session context might have it depending on implementation. 
+                    liveId: liveId
+                });
+            }
+
             // 4. Publish back to WebSocket Server
             await redisPub.publish("chat_broadcast", JSON.stringify({
                 id: aiReply.id,
@@ -203,8 +214,6 @@ async function startWorker() {
             }));
 
             const skipTts = await shouldSkipTtsForMessage(liveId, viewerMessage);
-
-            const tenantId = session.tenant_id;
 
             if (skipTts) {
                 console.log(`[AI-Worker][TTS-SKIP] TTS suppressed for reply ${aiReply.id} in session ${liveId}`);

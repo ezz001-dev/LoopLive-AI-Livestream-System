@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
 import { getTenantScopedLiveSession, getLiveSessionTenantId } from "@/lib/tenant-context";
+import { logAudit } from "@/lib/audit";
+import { getAuthSession } from "@/lib/auth-session";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +39,22 @@ export async function POST(
         await prisma.live_sessions.update({
             where: { id },
             data: { status: "IDLE" }
+        });
+
+        // --- Audit Log ---
+        const tenantId = await getLiveSessionTenantId(id);
+        const authSession = await getAuthSession();
+        await logAudit({
+            tenantId: tenantId || undefined,
+            actorUserId: authSession?.userId,
+            actorType: schedulerKey ? "system" : "user",
+            action: "STOP_STREAM",
+            targetType: "live_session",
+            targetId: id,
+            metadata: {
+                triggeredBy: schedulerKey ? "scheduler" : "manual",
+                sessionTitle: session.title
+            }
         });
 
         // 2. Stop worker
