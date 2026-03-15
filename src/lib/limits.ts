@@ -12,7 +12,7 @@ export type PlanLimits = {
 export const PLANS: Record<string, PlanLimits> = {
     "free_trial": {
         maxActiveStreams: 1,
-        maxStorageGB: 1,
+        maxStorageGB: 2,
         maxAiResponsesPerDay: 10,
         maxScheduledSessions: 3,
         maxTeamMembers: 1,
@@ -122,6 +122,23 @@ export async function checkPlanLimit(
             return {
                 allowed: false,
                 message: `Anda telah mencapai batas maksimum ${limits.maxTeamMembers} anggota tim untuk paket ini.`
+            };
+        }
+    }
+
+    if (metric === "maxStorageGB") {
+        const videoStats = await (prisma as any).videos.aggregate({
+            where: { tenant_id: tenantId },
+            _sum: { file_size: true }
+        });
+
+        const totalBytes = Number(videoStats._sum?.file_size || 0);
+        const totalGB = totalBytes / (1024 * 1024 * 1024);
+
+        if (totalGB >= limits.maxStorageGB) {
+            return {
+                allowed: false,
+                message: `Anda telah mencapai batas storage ${limits.maxStorageGB}GB. Silakan hapus video lama untuk mengunggah yang baru.`
             };
         }
     }

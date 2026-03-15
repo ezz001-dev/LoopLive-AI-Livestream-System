@@ -134,6 +134,16 @@ export async function createVideoUploadDraft(input: {
   tenantId?: string;
 }) {
   const assetId = crypto.randomUUID();
+  
+  // Enforce storage limits
+  if (input.tenantId) {
+    const { checkPlanLimit } = await import("./limits");
+    const limitCheck = await checkPlanLimit(input.tenantId, "maxStorageGB");
+    if (!limitCheck.allowed) {
+      throw new Error(limitCheck.message || "Storage limit reached");
+    }
+  }
+
   const provider = await getStorageProvider(input.tenantId);
   const objectKey = buildObjectKey("videos", assetId, input.filename);
   const normalizedSize =
