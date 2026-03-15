@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { prisma } from "./prisma";
 import { getLiveSessionTenantId } from "./tenant-context";
 import { recordUsage } from "./usage";
+import { checkPlanLimit } from "./limits";
 import * as dotenv from "dotenv";
 import axios from "axios";
 
@@ -180,8 +181,15 @@ async function startWorker() {
                 return;
             }
 
-            // 2. Generate Reply
+            // 2. Limit Check
             const tenantId = session.tenant_id;
+            const limitCheck = await checkPlanLimit(tenantId, "maxAiResponsesPerDay");
+            if (!limitCheck.allowed) {
+                console.warn(`[AI-Worker][Tenant:${tenantId}] Limit reached: ${limitCheck.message}`);
+                return;
+            }
+
+            // 3. Generate Reply
             const replyText = await generateReply(session, viewerMessage, viewerId);
             console.log(`[AI-Worker] AI Reply: ${replyText}`);
 

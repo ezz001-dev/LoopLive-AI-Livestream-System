@@ -3,8 +3,9 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield } from "lucide-react";
+import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard } from "lucide-react";
 import TourGuide from "../../components/admin/TourGuide";
+import SubscriptionStatus from "../../components/SubscriptionStatus";
 
 type NavLinkProps = {
   href: string;
@@ -110,6 +111,10 @@ export default function AdminLayout({
             />
           )}
         </nav>
+
+        <div className="px-4 mb-4">
+           <SubscriptionStatus />
+        </div>
 
         <div className="p-4 border-t border-slate-800">
           <button 

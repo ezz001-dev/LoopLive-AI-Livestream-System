@@ -6,6 +6,7 @@ import { resolveVideoInputSource } from "@/lib/storage";
 import { getTenantScopedLiveSession, getLiveSessionTenantId } from "@/lib/tenant-context";
 import { logAudit } from "@/lib/audit";
 import { getAuthSession } from "@/lib/auth-session";
+import { checkPlanLimit } from "@/lib/limits";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,12 @@ export async function POST(
 
         if (session.status === "LIVE") {
             return NextResponse.json({ error: "Stream is already live" }, { status: 400 });
+        }
+
+        // --- Plan Limit Guard Rail ---
+        const limitCheck = await checkPlanLimit(tenantId, "maxActiveStreams");
+        if (!limitCheck.allowed) {
+            return NextResponse.json({ error: limitCheck.message }, { status: 403 });
         }
 
         const tSettings = await getTenantSettings(tenantId);

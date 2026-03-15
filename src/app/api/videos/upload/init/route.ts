@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createPresignedVideoUploadUrl, createVideoUploadDraft } from "@/lib/storage";
 import { getStorageProvider } from "@/lib/storage-config";
 import { getCurrentTenantId } from "@/lib/tenant-context";
+import { checkPlanLimit } from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -21,6 +22,12 @@ export async function POST(req: Request) {
 
     if (!fileSize || typeof fileSize !== "number" || fileSize <= 0) {
       return NextResponse.json({ error: "fileSize must be a positive number" }, { status: 400 });
+    }
+
+    // --- Plan Limit Guard Rail ---
+    const limitCheck = await checkPlanLimit(tenantId, "maxStorageGB");
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.message }, { status: 403 });
     }
 
     const draft = await createVideoUploadDraft({ filename, fileType, fileSize, tenantId });
