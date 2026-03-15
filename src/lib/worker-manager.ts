@@ -29,6 +29,7 @@ type ManagedSession = {
   currentAudioBatch: ActiveAudioBatch | null;
   currentAudioEventTimer: NodeJS.Timeout | null;
   process: ChildProcess | null;
+  lastHeartbeat: number;
 };
 
 const MAX_RESTART_ATTEMPTS = 10;
@@ -273,6 +274,7 @@ class WorkerManager {
       currentAudioBatch: null,
       currentAudioEventTimer: null,
       process: null,
+      lastHeartbeat: Date.now(),
     };
 
     session.videoInput = videoInput;
@@ -478,13 +480,9 @@ class WorkerManager {
 
     session.process = ffmpeg;
 
-    // Temporarily disabled to keep YouTube comment and sound-effect debugging readable.
-    // ffmpeg.stderr.on("data", (data) => {
-    //   const message = data.toString().trim();
-    //   if (message) {
-    //     console.error(`[FFmpeg ${session.liveId}] ${message}`);
-    //   }
-    // });
+    ffmpeg.stderr.on("data", () => {
+      session.lastHeartbeat = Date.now();
+    });
 
     ffmpeg.on("error", (error) => {
       console.error(`[WorkerManager] FFmpeg process error for ${session.liveId}:`, error);
@@ -665,6 +663,13 @@ class WorkerManager {
    */
   public isRunning(liveId: string): boolean {
     return this.sessions.has(liveId);
+  }
+
+  /**
+   * Returns the last heartbeat timestamp for a session.
+   */
+  public getHeartbeat(liveId: string): number | null {
+    return this.sessions.get(liveId)?.lastHeartbeat || null;
   }
 }
 

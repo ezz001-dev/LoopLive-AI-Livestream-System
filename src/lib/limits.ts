@@ -4,6 +4,8 @@ export type PlanLimits = {
     maxActiveStreams: number;
     maxStorageGB: number;
     maxAiResponsesPerDay: number;
+    maxScheduledSessions: number;
+    maxTeamMembers: number;
     canUseCustomVoices: boolean;
 };
 
@@ -12,24 +14,32 @@ export const PLANS: Record<string, PlanLimits> = {
         maxActiveStreams: 1,
         maxStorageGB: 1,
         maxAiResponsesPerDay: 10,
+        maxScheduledSessions: 3,
+        maxTeamMembers: 1,
         canUseCustomVoices: false,
     },
     "creator": {
         maxActiveStreams: 1,
-        maxStorageGB: 1,
-        maxAiResponsesPerDay: 50,
+        maxStorageGB: 5,
+        maxAiResponsesPerDay: 100,
+        maxScheduledSessions: 5,
+        maxTeamMembers: 2,
         canUseCustomVoices: false,
     },
     "studio": {
         maxActiveStreams: 3,
-        maxStorageGB: 10,
-        maxAiResponsesPerDay: 500,
+        maxStorageGB: 20,
+        maxAiResponsesPerDay: 1000,
+        maxScheduledSessions: 20,
+        maxTeamMembers: 5,
         canUseCustomVoices: true,
     },
     "agency": {
         maxActiveStreams: 10,
-        maxStorageGB: 50,
+        maxStorageGB: 100,
         maxAiResponsesPerDay: 10000,
+        maxScheduledSessions: 100,
+        maxTeamMembers: 20,
         canUseCustomVoices: true,
     }
 };
@@ -86,6 +96,32 @@ export async function checkPlanLimit(
             return {
                 allowed: false,
                 message: `Tenant telah mencapai batas ${limits.maxAiResponsesPerDay} respon AI per hari.`
+            };
+        }
+    }
+
+    if (metric === "maxScheduledSessions") {
+        const sessionCount = await (prisma as any).live_sessions.count({
+            where: { tenant_id: tenantId }
+        });
+
+        if (sessionCount >= limits.maxScheduledSessions) {
+            return {
+                allowed: false,
+                message: `Anda telah mencapai batas maksimum ${limits.maxScheduledSessions} sesi/jadwal. Silakan hapus sesi lama atau upgrade paket Anda.`
+            };
+        }
+    }
+
+    if (metric === "maxTeamMembers") {
+        const memberCount = await (prisma as any).tenant_users.count({
+            where: { tenant_id: tenantId }
+        });
+
+        if (memberCount >= limits.maxTeamMembers) {
+            return {
+                allowed: false,
+                message: `Anda telah mencapai batas maksimum ${limits.maxTeamMembers} anggota tim untuk paket ini.`
             };
         }
     }

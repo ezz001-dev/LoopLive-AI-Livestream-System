@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenantId } from "@/lib/tenant-context";
+import { checkPlanLimit } from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -37,6 +38,12 @@ export async function POST(req: Request) {
         { error: "Loop count harus diisi dengan angka lebih besar dari 0 saat mode loop berbasis jumlah dipakai" },
         { status: 400 }
       );
+    }
+
+    // --- Plan Limit Guard Rail ---
+    const limitCheck = await checkPlanLimit(tenantId, "maxScheduledSessions");
+    if (!limitCheck.allowed) {
+      return NextResponse.json({ error: limitCheck.message }, { status: 403 });
     }
 
     const newSession = await (prisma.live_sessions as any).create({

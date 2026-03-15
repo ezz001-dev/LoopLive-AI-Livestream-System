@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import TenantStatusActions from "@/components/ops/TenantStatusActions";
+import SessionResetAction from "@/components/ops/SessionResetAction";
+import { AlertCircle, ShieldAlert } from "lucide-react";
+import { workerManager } from "@/lib/worker-manager";
 
 export default async function TenantOpsDetailPage({
   params,
@@ -100,6 +103,17 @@ export default async function TenantOpsDetailPage({
                       }`}>
                         {s.status}
                       </span>
+                      {s.status === 'LIVE' && (() => {
+                         const hb = workerManager.getHeartbeat(s.id);
+                         if (!hb) return null;
+                         const diff = Math.floor((Date.now() - hb) / 1000);
+                         return (
+                           <span className={`text-[9px] font-bold ${diff > 30 ? 'text-rose-400' : 'text-emerald-400 opacity-60'}`}>
+                             {diff > 60 ? 'STALLED?' : `${diff}s ago`}
+                           </span>
+                         );
+                      })()}
+                      <SessionResetAction sessionId={s.id} title={s.title} status={s.status} />
                       <Link href={`/admin/live/${s.id}`} className="text-xs font-bold text-cyan-400 hover:text-cyan-300">View Details →</Link>
                    </div>
                 </div>
@@ -135,8 +149,37 @@ export default async function TenantOpsDetailPage({
                        <tr><td colSpan={3} className="px-5 py-12 text-center text-slate-500 italic">No usage records yet.</td></tr>
                     )}
                   </tbody>
-               </table>
+                </table>
             </div>
+          </section>
+
+          {/* Execution Health / Errors */}
+          <section className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-8">
+             <div className="flex items-center gap-3 mb-6">
+                <AlertCircle className="text-rose-500" size={20} />
+                <h3 className="text-xl font-bold text-white">Execution Health / Errors</h3>
+             </div>
+             <div className="space-y-4">
+                {audits.filter((a: any) => a.action.includes('FAIL') || a.action.includes('ERROR') || (a.metadata && (a.metadata as any).error)).map((e: any) => (
+                  <div key={e.id} className="p-4 rounded-2xl bg-slate-950/60 border border-rose-500/20 flex gap-4">
+                     <div className="h-10 w-10 shrink-0 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+                        <ShieldAlert size={20} />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                        <p className="text-xs font-black uppercase tracking-widest text-rose-400">{e.action}</p>
+                        <p className="mt-1 text-sm text-slate-300 font-mono break-words">
+                          {((e.metadata as any)?.error) || ((e.metadata as any)?.reason) || "Unknown operational error"}
+                        </p>
+                        <p className="mt-2 text-[10px] text-slate-500 font-bold">
+                           Target: {e.target_type} ({e.target_id}) • {new Date(e.created_at).toLocaleString()}
+                        </p>
+                     </div>
+                  </div>
+                ))}
+                {audits.filter((a: any) => a.action.includes('FAIL') || a.action.includes('ERROR') || (a.metadata && (a.metadata as any).error)).length === 0 && (
+                  <p className="text-sm text-slate-600 italic text-center py-4">No recent execution errors found.</p>
+                )}
+             </div>
           </section>
         </div>
 
