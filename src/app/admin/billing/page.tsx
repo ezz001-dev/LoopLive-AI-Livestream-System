@@ -9,20 +9,20 @@ export default function BillingPage() {
         {
             name: "Creator",
             price: "$29",
-            features: ["1 Active Stream", "10 AI Responses/day", "1GB Storage", "Standard Support"],
+            features: ["1 Stream Aktif", "10 Respon AI/hari", "5GB Penyimpanan", "Dukungan Standar"],
             color: "blue",
         },
         {
             name: "Studio",
             price: "$99",
-            features: ["5 Active Streams", "Unlimited AI Responses", "20GB Storage", "Priority Support", "Custom Voices"],
+            features: ["5 Stream Aktif", "Respon AI Tak Terbatas", "20GB Penyimpanan", "Dukungan Prioritas", "Custom Voice"],
             color: "purple",
             popular: true,
         },
         {
             name: "Agency",
             price: "$249",
-            features: ["Unlimited Streams", "Unlimited AI Responses", "100GB Storage", "Dedicated Account Manager", "API Access"],
+            features: ["Stream Tak Terbatas", "Respon AI Tak Terbatas", "100GB Penyimpanan", "Account Manager Khusus", "Akses API"],
             color: "indigo",
         }
     ];
@@ -31,12 +31,12 @@ export default function BillingPage() {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-white">Billing & Plans</h1>
-                    <p className="text-slate-500 mt-1">Manage your subscription and usage limits.</p>
+                    <h1 className="text-3xl font-black text-white">Tagihan & Paket</h1>
+                    <p className="text-slate-500 mt-1">Kelola langganan dan batas penggunaan Anda.</p>
                 </div>
                 <div className="px-4 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-bold flex items-center gap-2">
                     <ShieldCheck size={16} />
-                    Secured by LoopLive Billing
+                    Diproteksi LoopLive Billing
                 </div>
             </div>
 
@@ -45,8 +45,8 @@ export default function BillingPage() {
 
             {/* Scale Your Studio */}
             <div className="text-center py-12">
-                <h2 className="text-2xl font-black text-white mb-2">Scale Your Studio</h2>
-                <p className="text-slate-500">Pick the perfect plan for your streaming needs.</p>
+                <h2 className="text-2xl font-black text-white mb-2">Tingkatkan Studio Anda</h2>
+                <p className="text-slate-500">Pilih paket yang tepat untuk kebutuhan streaming Anda.</p>
             </div>
 
             <div className="grid md:grid-cols-3 gap-8 pb-12">
@@ -57,7 +57,7 @@ export default function BillingPage() {
                     >
                         {plan.popular && (
                             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full shadow-lg">
-                                Most Popular
+                                Paling Populer
                             </div>
                         )}
                         <h3 className="text-xl font-black text-white mb-1">{plan.name}</h3>
@@ -82,7 +82,7 @@ export default function BillingPage() {
                             ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-500' 
                             : 'bg-slate-800 text-white hover:bg-slate-700'
                         }`}>
-                            Choose {plan.name}
+                            Pilih {plan.name}
                             <ArrowRight size={14} />
                         </button>
                     </div>

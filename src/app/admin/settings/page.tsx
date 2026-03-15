@@ -245,7 +245,8 @@ export default function SettingsPage() {
             </div>
           )}
           <button
-            onClick={activeTab === "sound_events" ? fetchSoundEvents : handleSave}
+            type="button"
+            onClick={handleSave}
             disabled={saving}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-2xl font-semibold transition-all shadow-lg active:scale-95 disabled:opacity-50 ${saved
                 ? "bg-green-600 shadow-green-600/20 text-white"
@@ -257,9 +258,9 @@ export default function SettingsPage() {
             ) : saved ? (
               <Check size={18} />
             ) : (
-              activeTab === "sound_events" ? <Loader2 size={18} /> : <Save size={18} />
+              <Save size={18} />
             )}
-            <span>{saving ? "Menyimpan..." : saved ? "Tersimpan!" : activeTab === "sound_events" ? "Muat Ulang" : "Simpan Perubahan"}</span>
+            <span>{saving ? "Menyimpan..." : saved ? "Tersimpan!" : "Simpan Perubahan"}</span>
           </button>
         </div>
       </div>
@@ -711,12 +712,13 @@ export default function SettingsPage() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleAddSound}
                   disabled={uploading || (!newSound.file)}
                   className="w-full flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all active:scale-95 shadow-lg shadow-pink-600/20"
                 >
                   {uploading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                  <span>{uploading ? "Uploading..." : "Add Sound Trigger"}</span>
+                  <span>{uploading ? "Mengupload..." : "Tambahkan Sound Trigger"}</span>
                 </button>
               </div>
 
@@ -753,12 +755,14 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <button
+                            type="button"
                             onClick={() => handleToggleSound(sound.id, !sound.active, sound.keyword)}
                             className={`h-8 w-8 rounded-lg flex items-center justify-center transition-all ${sound.active ? 'text-green-400 hover:bg-green-500/10' : 'text-slate-600 hover:bg-slate-700'}`}
                           >
                             {sound.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDeleteSound(sound.id)}
                             className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
                           >

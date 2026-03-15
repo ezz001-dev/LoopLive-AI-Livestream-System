@@ -58,10 +58,10 @@ export default function UsageDashboard() {
   }
 
   const metrics = [
-    { label: "AI Responses", key: "ai_responses", icon: MessageSquare, color: "text-cyan-400" },
-    { label: "TTS Seconds", key: "tts_seconds", icon: Volume2, color: "text-rose-400" },
-    { label: "Storage (MB)", key: "storage_mb", icon: HardDrive, color: "text-amber-400" },
-    { label: "Stream Hours", key: "stream_hours", icon: Activity, color: "text-emerald-400" },
+    { label: "Respon AI", key: "ai_responses", icon: MessageSquare, color: "text-cyan-400" },
+    { label: "Detik TTS", key: "tts_seconds", icon: Volume2, color: "text-rose-400" },
+    { label: "Penyimpanan (MB)", key: "storage_mb", icon: HardDrive, color: "text-amber-400" },
+    { label: "Jam Streaming", key: "stream_hours", icon: Activity, color: "text-emerald-400" },
   ];
 
   return (
@@ -77,7 +77,7 @@ export default function UsageDashboard() {
                 days === d ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20" : "text-slate-400 hover:text-white"
               }`}
             >
-              {d === 7 ? "WEEK" : d === 30 ? "MONTH" : "QUARTER"}
+              {d === 7 ? "7 HARI" : d === 30 ? "1 BULAN" : "3 BULAN"}
             </button>
           ))}
         </div>
@@ -110,9 +110,9 @@ export default function UsageDashboard() {
           <div>
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
                <TrendingUp className="text-cyan-500" size={20} />
-               Consumption Trends
+               Tren Penggunaan
             </h3>
-            <p className="text-sm text-slate-500">Resource usage over the last {days} days</p>
+            <p className="text-sm text-slate-500">Pemakaian resource {days} hari terakhir</p>
           </div>
         </div>
 
@@ -159,7 +159,7 @@ export default function UsageDashboard() {
               <Area 
                 type="monotone" 
                 dataKey="ai_responses" 
-                name="AI Responses"
+                name="Respon AI"
                 stroke="#22d3ee" 
                 strokeWidth={3}
                 fillOpacity={1} 
@@ -169,7 +169,7 @@ export default function UsageDashboard() {
               <Area 
                 type="monotone" 
                 dataKey="tts_seconds" 
-                name="TTS Seconds"
+                name="Detik TTS"
                 stroke="#fb7185" 
                 strokeWidth={3}
                 fillOpacity={1} 
