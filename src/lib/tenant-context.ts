@@ -12,6 +12,13 @@ type TenantContext = {
 let cachedTenantContext: TenantContext | null = null;
 
 export async function getCurrentTenantContext(): Promise<TenantContext> {
+  // Safety check: verify if Prisma Client has been generated with tenant models
+  if (!(prisma as any).tenants) {
+    throw new Error(
+      "Prisma Client is missing the 'tenants' model. Please stop the dev server and run 'npx prisma generate'."
+    );
+  }
+
   const authSession = await getAuthSession();
   if (authSession?.tenantId) {
     const tenantFromAuth = await (prisma as any).tenants.findUnique({
