@@ -29,7 +29,7 @@ export default function LoginPage() {
       if (res.ok) {
         setSuccess(true);
         setTimeout(() => {
-          router.push("/admin");
+          router.push(data.redirectTo || "/admin");
         }, 1000);
       } else {
         setError(data.error || "Login failed. Please check your credentials.");

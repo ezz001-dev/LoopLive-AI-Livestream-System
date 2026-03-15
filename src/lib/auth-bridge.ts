@@ -9,6 +9,7 @@ export type AuthBridgeUser = {
   authSource: "users" | "admin_users";
   tenantId: string;
   tenantRole: string;
+  tenantStatus: string;
   appRole: "tenant_admin" | "internal_ops";
   canAccessOps: boolean;
 };
@@ -50,9 +51,15 @@ async function ensureTenantMembership(userId: string) {
   });
 
   if (existingMembership) {
+    const existingTenant = await (prisma as any).tenants.findUnique({
+      where: { id: existingMembership.tenant_id },
+      select: { id: true, status: true },
+    });
+
     return {
       tenantId: existingMembership.tenant_id,
       tenantRole: existingMembership.role || "owner",
+      tenantStatus: existingTenant?.status || "active",
     };
   }
 
@@ -67,6 +74,7 @@ async function ensureTenantMembership(userId: string) {
   return {
     tenantId: newMembership.tenant_id,
     tenantRole: newMembership.role,
+    tenantStatus: defaultTenant.status || "active",
   };
 }
 
@@ -106,6 +114,7 @@ export async function authenticateWithBridge(email: string, password: string): P
       authSource: "users",
       tenantId: membership.tenantId,
       tenantRole: membership.tenantRole,
+      tenantStatus: membership.tenantStatus,
       appRole: isInternalOps ? "internal_ops" : "tenant_admin",
       canAccessOps: isInternalOps,
     };
@@ -134,6 +143,7 @@ export async function authenticateWithBridge(email: string, password: string): P
     authSource: "admin_users",
     tenantId: membership.tenantId,
     tenantRole: membership.tenantRole,
+    tenantStatus: membership.tenantStatus,
     appRole: isInternalOps ? "internal_ops" : "tenant_admin",
     canAccessOps: isInternalOps,
   };

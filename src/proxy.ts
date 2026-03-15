@@ -9,13 +9,14 @@ function isProtectedPath(pathname: string) {
   const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/api/auth");
   const isAdminRoute = pathname.startsWith("/admin");
   const isOpsRoute = pathname.startsWith("/ops");
+  const isSuspendedRoute = pathname.startsWith("/suspended");
   const isProtectedApiRoute =
     pathname.startsWith("/api/live") ||
     pathname.startsWith("/api/videos") ||
     pathname.startsWith("/api/ops");
   const isYouTubeIdRoute = pathname.match(/\/api\/live\/[^\/]+\/youtube-id$/);
 
-  return { isAuthRoute, isAdminRoute, isOpsRoute, isProtectedApiRoute, isYouTubeIdRoute };
+  return { isAuthRoute, isAdminRoute, isOpsRoute, isSuspendedRoute, isProtectedApiRoute, isYouTubeIdRoute };
 }
 
 async function verifyAuthToken(token: string) {
@@ -162,7 +163,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Define protected and public routes
-  const { isAuthRoute, isAdminRoute, isOpsRoute, isProtectedApiRoute, isYouTubeIdRoute } = isProtectedPath(pathname);
+  const { isAuthRoute, isAdminRoute, isOpsRoute, isSuspendedRoute, isProtectedApiRoute, isYouTubeIdRoute } = isProtectedPath(pathname);
 
   if (isAdminRoute || isOpsRoute || isProtectedApiRoute || isAuthRoute) {
     const internalAccessResponse = enforceInternalAccess(request, pathname);
@@ -179,15 +180,35 @@ export async function proxy(request: NextRequest) {
   if (isAuthRoute) {
     if (token) {
       try {
-        await verifyAuthToken(token);
-        console.log("[Security] Already logged in, redirecting to /admin");
-        return NextResponse.redirect(new URL("/admin", request.url));
+        const payload = await verifyAuthToken(token);
+        if (payload.tenantStatus === "suspended" && !payload.canAccessOps) {
+          return NextResponse.redirect(new URL("/suspended", request.url));
+        }
+        return NextResponse.redirect(new URL(payload.canAccessOps ? "/ops" : "/admin", request.url));
       } catch (e) {
         console.error("[Security] Token invalid on login page, allowing stay");
         // Invalid token, allow access to login
       }
     }
     return NextResponse.next();
+  }
+
+  if (isSuspendedRoute) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    try {
+      const payload = await verifyAuthToken(token);
+      if (payload.tenantStatus === "suspended" && !payload.canAccessOps) {
+        return NextResponse.next();
+      }
+      return NextResponse.redirect(new URL(payload.canAccessOps ? "/ops" : "/admin", request.url));
+    } catch {
+      const response = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.delete("auth_token");
+      return response;
+    }
   }
 
   // 4. Handle Protected routes (Admin & Live APIs)
@@ -214,6 +235,19 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/admin", request.url));
       }
 
+      if (payload.tenantStatus === "suspended" && !payload.canAccessOps) {
+        if (isAdminRoute) {
+          return NextResponse.redirect(new URL("/suspended", request.url));
+        }
+
+        if (isProtectedApiRoute && !pathname.startsWith("/api/ops")) {
+          return NextResponse.json(
+            { error: "Workspace suspended" },
+            { status: 423 }
+          );
+        }
+      }
+
       // console.log("[Security] JWT Verified successfully");
       return NextResponse.next();
     } catch (e: any) {
@@ -233,5 +267,5 @@ export async function proxy(request: NextRequest) {
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: ["/admin/:path*", "/ops/:path*", "/api/live/:path*", "/api/videos/:path*", "/api/ops/:path*", "/login"],
+  matcher: ["/admin/:path*", "/ops/:path*", "/api/live/:path*", "/api/videos/:path*", "/api/ops/:path*", "/login", "/suspended"],
 };

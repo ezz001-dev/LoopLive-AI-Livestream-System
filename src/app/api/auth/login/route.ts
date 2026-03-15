@@ -21,6 +21,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
+    if (user.tenantStatus === "suspended" && !user.canAccessOps) {
+      return NextResponse.json(
+        { error: "Workspace Anda sedang disuspend. Hubungi tim support untuk mengaktifkannya kembali." },
+        { status: 403 }
+      );
+    }
+
     const token = await new SignJWT({
       userId: user.id,
       email: user.email,
@@ -28,6 +35,7 @@ export async function POST(req: Request) {
       authSource: user.authSource,
       tenantId: user.tenantId,
       tenantRole: user.tenantRole,
+      tenantStatus: user.tenantStatus,
       appRole: user.appRole,
       canAccessOps: user.canAccessOps,
     })
@@ -36,7 +44,10 @@ export async function POST(req: Request) {
       .setExpirationTime("7d") // Increased to 7 days for convenience
       .sign(JWT_SECRET);
 
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.json({
+      success: true,
+      redirectTo: user.canAccessOps ? "/ops" : "/admin",
+    });
     
     // Set HTTP-only cookie
     // Note: 'secure' is false for now to support non-SSL VPS setups. 
