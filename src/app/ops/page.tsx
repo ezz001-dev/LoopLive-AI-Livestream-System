@@ -1,9 +1,17 @@
 import React from "react";
 import { prisma } from "@/lib/prisma";
 import TenantStatusActions from "@/components/ops/TenantStatusActions";
+import Link from "next/link";
 
 export default async function OpsPage() {
-  const [tenantCount, userCount, sessionCount, tenants, recentVideos, recentSessions] = await Promise.all([
+  const [
+    tenantCount,
+    userCount,
+    sessionCount,
+    tenants,
+    recentAudits,
+    usageStats,
+  ] = await Promise.all([
     (prisma as any).tenants.count(),
     (prisma as any).users.count(),
     (prisma.live_sessions as any).count(),
@@ -19,35 +27,22 @@ export default async function OpsPage() {
         },
       },
     }),
-    (prisma.videos as any).findMany({
+    (prisma as any).audit_logs.findMany({
       orderBy: { created_at: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        filename: true,
-        created_at: true,
+      take: 10,
+      include: {
         tenant: {
-          select: {
-            name: true,
-            slug: true,
-          },
+          select: { name: true, slug: true },
+        },
+        user: {
+          select: { display_name: true, email: true },
         },
       },
     }),
-    (prisma.live_sessions as any).findMany({
-      orderBy: { created_at: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        created_at: true,
-        tenant: {
-          select: {
-            name: true,
-            slug: true,
-          },
-        },
+    (prisma as any).usage_records.groupBy({
+      by: ["metric"],
+      _sum: {
+        quantity: true,
       },
     }),
   ]);
@@ -57,72 +52,83 @@ export default async function OpsPage() {
       label: "Tenants",
       value: tenantCount,
       tone: "border-cyan-500/20 bg-cyan-500/10 text-cyan-300",
-      note: "Workspace pelanggan yang sudah tercatat",
+      note: "Workspace pelanggan aktif",
     },
     {
       label: "Users",
       value: userCount,
       tone: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
-      note: "Akun yang siap dipetakan ke tenant",
+      note: "Total identitas pengguna",
     },
     {
       label: "Live Sessions",
       value: sessionCount,
       tone: "border-amber-500/20 bg-amber-500/10 text-amber-300",
-      note: "Total sesi lintas tenant saat ini",
+      note: "Total sesi lintas tenant",
     },
   ];
 
-  const activityFeed = [
-    ...recentVideos.map((video: any) => ({
-      id: `video-${video.id}`,
-      type: "Video Uploaded",
-      title: video.filename,
-      tenantName: video.tenant?.name || "Unknown Tenant",
-      createdAt: video.created_at,
-    })),
-    ...recentSessions.map((session: any) => ({
-      id: `session-${session.id}`,
-      type: `Session ${session.status}`,
-      title: session.title,
-      tenantName: session.tenant?.name || "Unknown Tenant",
-      createdAt: session.created_at,
-    })),
-  ]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8);
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       <section className="rounded-3xl border border-slate-800 bg-slate-900/50 p-8">
-        <h2 className="text-3xl font-bold tracking-tight">Internal Operations Surface</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-white">Platform Operations Surface</h2>
         <p className="mt-2 max-w-3xl text-slate-400">
-          Console ini dipisahkan dari tenant dashboard agar aktivitas operasional platform,
-          support, dan audit tidak bercampur dengan area kerja customer.
+          Monitoring terpusat untuk aktivitas tenant, audit akses, dan metering penggunaan platform.
         </p>
       </section>
 
+      {/* Quick Stats */}
       <section className="grid gap-6 md:grid-cols-3">
         {cards.map((card) => (
           <div key={card.label} className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6">
             <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${card.tone}`}>
               {card.label}
             </span>
-            <p className="mt-4 text-4xl font-bold">{card.value}</p>
-            <p className="mt-2 text-sm text-slate-400">{card.note}</p>
+            <p className="mt-4 text-4xl font-bold text-white">{card.value}</p>
+            <p className="mt-1 text-sm text-slate-400">{card.note}</p>
           </div>
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
+      <section className="rounded-3xl border border-slate-800 bg-slate-900/40 p-8">
+        <h3 className="text-lg font-bold text-white">Platform Cumulative Usage</h3>
+        <div className="mt-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+           {usageStats.map((stat: any) => {
+             const maxQty = 1000; // Placeholder for normalization
+             const percentage = Math.min(100, (Number(stat._sum.quantity) / maxQty) * 100);
+             return (
+               <div key={stat.metric} className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40 p-5 transition-all hover:border-slate-700">
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 group-hover:text-slate-300 transition-colors">{stat.metric.replace('_', ' ')}</p>
+                    <p className="mt-3 text-3xl font-black text-white">
+                      {Number(stat._sum.quantity).toLocaleString()}
+                      <span className="ml-1.5 text-xs font-bold text-slate-500 uppercase">
+                        {stat.metric === 'tts_seconds' ? 's' : stat.metric === 'stream_minutes' ? 'min' : ''}
+                      </span>
+                    </p>
+                  </div>
+                  {/* Gauge Backdrop */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-transparent opacity-50" />
+                  <div 
+                    className="absolute bottom-0 left-0 h-1 bg-cyan-500/40 transition-all duration-1000 group-hover:bg-cyan-400" 
+                    style={{ width: `${percentage}%` }}
+                  />
+               </div>
+             );
+           })}
+           {usageStats.length === 0 && (
+             <div className="col-span-full py-12 text-sm text-slate-500 italic text-center border border-dashed border-slate-800 rounded-3xl">
+               No usage activity detected for this period.
+             </div>
+           )}
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+        {/* Tenant Directory */}
         <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-8">
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-bold">Workspace Directory</h3>
-              <p className="mt-1 text-sm text-slate-400">
-                Daftar tenant yang aktif di platform, lengkap dengan status dan beban operasional singkat.
-              </p>
-            </div>
+            <h3 className="text-lg font-bold text-white">Workspace Directory</h3>
             <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-300">
               {tenants.length} workspace
             </span>
@@ -132,38 +138,36 @@ export default async function OpsPage() {
             <table className="w-full text-left">
               <thead className="bg-slate-900/70 text-xs uppercase tracking-widest text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Workspace</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Members</th>
-                  <th className="px-4 py-3">Assets</th>
-                  <th className="px-4 py-3">Sessions</th>
-                  <th className="px-4 py-3 text-right">Support</th>
+                  <th className="px-5 py-4">Workspace</th>
+                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">Users</th>
+                  <th className="px-5 py-4">Assets</th>
+                  <th className="px-5 py-4 text-right">Support</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
                 {tenants.map((tenant: any) => (
-                  <tr key={tenant.id} className="bg-slate-950/20">
-                    <td className="px-4 py-4">
-                      <div>
-                        <p className="font-semibold text-white">{tenant.name}</p>
-                        <p className="mt-1 text-xs text-slate-500">{tenant.slug}</p>
-                      </div>
+                  <tr key={tenant.id} className="group hover:bg-slate-800/30 transition-colors">
+                    <td className="px-5 py-4">
+                      <Link href={`/ops/tenants/${tenant.id}`} className="block">
+                        <>
+                          <p className="font-semibold text-white group-hover:text-cyan-400 transition-colors">{tenant.name}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">/{tenant.slug}</p>
+                        </>
+                      </Link>
                     </td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest ${
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest ${
                           tenant.status === "suspended"
                             ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
                             : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                        }`}
-                      >
+                        }`}>
                         {tenant.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-slate-300">{tenant._count.users}</td>
-                    <td className="px-4 py-4 text-slate-300">{tenant._count.videos}</td>
-                    <td className="px-4 py-4 text-slate-300">{tenant._count.live_sessions}</td>
-                    <td className="px-4 py-4 text-right">
+                    <td className="px-5 py-4 text-sm text-slate-400">{tenant._count.users}</td>
+                    <td className="px-5 py-4 text-sm text-slate-400">{tenant._count.videos}</td>
+                    <td className="px-5 py-4 text-right">
                       <TenantStatusActions
                         tenantId={tenant.id}
                         tenantName={tenant.name}
@@ -177,38 +181,46 @@ export default async function OpsPage() {
           </div>
         </div>
 
+        {/* Audit Feed */}
         <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-8">
-          <h3 className="text-lg font-bold">Platform Activity</h3>
-          <p className="mt-1 text-sm text-slate-400">
-            Feed audit ringan untuk memantau aktivitas tenant lintas asset dan session.
-          </p>
+          <h3 className="text-lg font-bold text-white">Security & Audit logs</h3>
+          <p className="mt-1 text-sm text-slate-400 italic">Real-time platform activity trail.</p>
 
           <div className="mt-6 space-y-4">
-            {activityFeed.length > 0 ? (
-              activityFeed.map((entry) => (
-                <div key={entry.id} className="rounded-2xl border border-slate-800 bg-slate-950/30 p-4">
+            {recentAudits.length > 0 ? (
+              recentAudits.map((audit: any) => (
+                <div key={audit.id} className="rounded-2xl border border-slate-800 bg-slate-950/30 p-4 hover:border-slate-700 transition-all">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-cyan-300">
-                        {entry.type}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400">
+                        {audit.action.replace('_', ' ')}
                       </p>
-                      <p className="mt-2 font-semibold text-white">{entry.title}</p>
-                      <p className="mt-1 text-sm text-slate-400">{entry.tenantName}</p>
+                      <p className="mt-2 text-sm font-medium text-white truncate">
+                        Target: {audit.target_type} ({audit.target_id?.slice(0,8) || 'N/A'})
+                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                         <div className="h-4 w-4 rounded-full bg-slate-800 flex items-center justify-center text-[8px] border border-slate-700 uppercase font-bold text-slate-500">
+                            {audit.actor_type[0]}
+                         </div>
+                         <p className="text-[11px] text-slate-500">
+                           {audit.user?.display_name || 'System'} • {audit.tenant?.name || 'Platform'}
+                         </p>
+                      </div>
                     </div>
-                    <span className="text-xs text-slate-500">
-                      {new Date(entry.createdAt).toLocaleString()}
+                    <span className="shrink-0 text-[10px] text-slate-600 font-medium">
+                      {new Date(audit.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-slate-800 p-6 text-sm text-slate-500">
-                Belum ada aktivitas lintas tenant yang bisa ditampilkan.
+              <div className="rounded-2xl border border-dashed border-slate-800 p-8 text-sm text-slate-500 text-center">
+                Belum ada log audit tercatat.
               </div>
             )}
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

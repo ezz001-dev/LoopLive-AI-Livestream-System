@@ -1,52 +1,85 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireInternalOpsSession } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+
+export async function GET(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const id = (await params).id;
+
+        const tenant = await (prisma as any).tenants.findUnique({
+            where: { id },
+            include: {
+                settings: true,
+                _count: {
+                    select: {
+                        users: true,
+                        videos: true,
+                        live_sessions: true,
+                    }
+                }
+            }
+        });
+
+        if (!tenant) {
+            return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+        }
+
+        const [sessions, recentAudits, usage] = await Promise.all([
+            (prisma.live_sessions as any).findMany({
+                where: { tenant_id: id },
+                include: { video: true },
+                orderBy: { created_at: "desc" }
+            }),
+            (prisma as any).audit_logs.findMany({
+                where: { tenant_id: id },
+                orderBy: { created_at: "desc" },
+                take: 20
+            }),
+            (prisma as any).usage_records.findMany({
+                where: { tenant_id: id },
+                orderBy: { created_at: "desc" },
+                take: 50
+            })
+        ]);
+
+        return NextResponse.json({
+            tenant,
+            sessions,
+            recentAudits,
+            usage
+        });
+
+    } catch (error: any) {
+        console.error("Ops Tenant API Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await requireInternalOpsSession();
+    try {
+        const id = (await params).id;
+        const body = await req.json();
+        const { status } = body;
 
-  if (!session) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+        if (!["active", "suspended"].includes(status)) {
+            return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+        }
 
-  try {
-    const { id } = await params;
-    const body = await req.json();
-    const nextStatus = body?.status === "suspended" ? "suspended" : "active";
+        const updated = await (prisma as any).tenants.update({
+            where: { id },
+            data: { status }
+        });
 
-    const tenant = await (prisma as any).tenants.findUnique({
-      where: { id },
-      select: { id: true, status: true, name: true },
-    });
-
-    if (!tenant) {
-      return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+        return NextResponse.json(updated);
+    } catch (error: any) {
+        console.error("Ops Tenant Status Update Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
-    const updatedTenant = await (prisma as any).tenants.update({
-      where: { id: tenant.id },
-      data: { status: nextStatus },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        status: true,
-        updated_at: true,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      tenant: updatedTenant,
-    });
-  } catch (error: any) {
-    console.error("[Ops API] Tenant status update failed:", error.message);
-    return NextResponse.json({ error: "Failed to update tenant status" }, { status: 500 });
-  }
 }
