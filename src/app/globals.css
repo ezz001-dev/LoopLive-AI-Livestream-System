@@ -66,9 +66,23 @@ body {
   animation: glowFloat 7s ease-in-out infinite;
 }
 
+@keyframes progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-progress {
+  animation: progress linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal-soft,
-  .float-glow {
+  .float-glow,
+  .animate-progress {
     animation: none;
     opacity: 1;
     transform: none;

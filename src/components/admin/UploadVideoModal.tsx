@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Upload, X, RefreshCw, FileVideo } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
 
 type UploadInitResponse =
   | {
@@ -32,6 +33,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusText, setStatusText] = useState("Uploading File...");
   const router = useRouter();
+  const { success, error: toastError } = useToast();
 
   if (!isOpen) return null;
 
@@ -150,8 +152,9 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       setFile(null);
       onClose();
       router.refresh();
+      success("Video Berhasil!", `${file.name} telah ditambahkan ke library.`);
     } catch (error: any) {
-      alert(`Upload failed: ${error.message || "Unknown error"}`);
+      toastError("Upload Gagal", error.message || "Unknown error");
       resetState();
     }
   };

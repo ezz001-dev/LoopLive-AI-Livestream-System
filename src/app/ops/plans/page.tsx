@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Plus, Edit2, Save, X, Check, DollarSign, Activity, HardDrive, MessageSquare, Users, Mic } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
 
 interface Plan {
     id: string;
@@ -20,6 +21,7 @@ interface Plan {
 }
 
 export default function PlansManagementPage() {
+    const { success, error: toastError } = useToast();
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -81,8 +83,9 @@ export default function PlansManagementPage() {
             
             setPlans(plans.map(p => p.id === editingId ? data : p));
             setEditingId(null);
-        } catch (err) {
-            alert("Gagal menyimpan perubahan");
+            success("Perubahan Disimpan", "Detail paket berhasil diperbarui.");
+        } catch (err: any) {
+            toastError("Gagal Menyimpan", err.message || "Terjadi kesalahan saat menyimpan perubahan.");
         }
     };
 
@@ -112,8 +115,9 @@ export default function PlansManagementPage() {
                 can_use_custom_voices: false,
                 active: true
             });
-        } catch (err) {
-            alert("Gagal menambahkan paket baru");
+            success("Paket Dibuat", "Paket baru berhasil ditambahkan ke sistem.");
+        } catch (err: any) {
+            toastError("Gagal Membuat Paket", err.message || "Terjadi kesalahan saat membuat paket baru.");
         }
     };
 
@@ -128,8 +132,12 @@ export default function PlansManagementPage() {
             const data = await res.json();
             if (data.error) throw new Error(data.error);
             setPlans(plans.map(p => p.id === plan.id ? data : p));
-        } catch (err) {
-            alert("Gagal mengubah status aktif");
+            success(
+                newStatus ? "Paket Diaktifkan" : "Paket Dinonaktifkan",
+                `Paket ${plan.name} sekarang ${newStatus ? 'aktif' : 'tidak aktif'}.`
+            );
+        } catch (err: any) {
+            toastError("Gagal Mengubah Status", "Tidak dapat memperbarui status aktif paket.");
         }
     };
 
