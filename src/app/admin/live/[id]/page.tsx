@@ -3,7 +3,7 @@ import { getCurrentTenantId } from "@/lib/tenant-context";
 import { notFound } from "next/navigation";
 import ClientSessionPage from "@/components/admin/ClientSessionPage";
 
-export default async function SessionControlPage({ params }: { params: { id: string } }) {
+export default async function SessionControlPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const tenantId = await getCurrentTenantId();
 
