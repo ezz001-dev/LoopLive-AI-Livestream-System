@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Configuration
 # APP_DIR="/path/to/your/app/LoopLive-AI-Livestream-System" # User should update this
