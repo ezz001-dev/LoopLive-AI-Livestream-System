@@ -4,15 +4,14 @@ import { getAuthSession } from "@/lib/auth-session";
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: memberId } = await params;
         const session = await getAuthSession();
         if (!session || !session.tenantId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
-        const memberId = params.id;
 
         // 1. Check if the member exists and belongs to this tenant
         const membership = await (prisma as any).tenant_users.findFirst({
@@ -54,15 +53,15 @@ export async function DELETE(
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: memberId } = await params;
         const session = await getAuthSession();
         if (!session || !session.tenantId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const memberId = params.id;
         const { role } = await req.json();
 
         if (!role) {

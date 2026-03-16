@@ -4,15 +4,14 @@ import { getAuthSession } from "@/lib/auth-session";
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: inviteId } = await params;
         const session = await getAuthSession();
         if (!session || !session.tenantId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
-        const inviteId = params.id;
 
         // 1. Check if the invitation exists and belongs to this tenant
         const invitation = await (prisma as any).invitations.findFirst({
