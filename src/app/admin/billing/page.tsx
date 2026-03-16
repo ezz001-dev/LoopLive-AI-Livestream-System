@@ -24,7 +24,8 @@ interface Subscription {
     id: string;
     plan_code: string;
     status: string;
-    current_period_end: string;
+    current_period_end: string | null;
+    trial_ends_at: string | null;
     plan: Plan;
 }
 
@@ -135,7 +136,13 @@ export default function BillingPage() {
                         <div>
                             <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Paket Aktif</p>
                             <h3 className="text-2xl font-black text-white">{subscription.plan?.name || subscription.plan_code}</h3>
-                            <p className="text-sm text-slate-400 font-medium">Berakhir pada {new Date(subscription.current_period_end).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-sm text-slate-400 font-medium">
+                                Berakhir pada {(() => {
+                                    const dateStr = subscription.current_period_end || subscription.trial_ends_at;
+                                    if (!dateStr) return "-";
+                                    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                                })()}
+                            </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">

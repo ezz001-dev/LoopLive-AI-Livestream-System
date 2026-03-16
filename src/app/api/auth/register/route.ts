@@ -94,6 +94,7 @@ export async function POST(req: Request) {
                     plan_code: "free_trial",
                     status: "trialing",
                     trial_ends_at: trialEnd,
+                    current_period_end: trialEnd,
                 }
             });
 
