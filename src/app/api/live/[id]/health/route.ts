@@ -3,10 +3,10 @@ import { workerManager } from "@/lib/worker-manager";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     
     // Check if session is running in worker manager
     const isRunning = workerManager.isRunning(sessionId);
@@ -37,7 +37,11 @@ export async function GET(
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error(`[HealthAPI] Error fetching health for ${params.id}:`, error);
+    // If param parsing fails, fallback to 'unknown'
+    const id = typeof params === 'object' && params !== null && 'id' in params 
+      ? (params as any).id 
+      : 'unknown';
+    console.error(`[HealthAPI] Error fetching health for ${id}:`, error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
