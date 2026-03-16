@@ -50,14 +50,28 @@ export const PLANS: Record<string, PlanLimits> = {
 export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
     const subscription = await (prisma as any).subscriptions.findFirst({
         where: { tenant_id: tenantId, status: { in: ["active", "trialing"] } },
+        include: { plan: true },
         orderBy: { created_at: "desc" }
     });
 
     const planCode = subscription?.plan_code || "free_trial";
     const baseLimits = { ...(PLANS[planCode] || PLANS["free_trial"]) };
 
-    // Apply dynamic trial overrides if applicable
-    if (planCode === "free_trial") {
+    // If we have a DB plan record, use its values
+    if (subscription?.plan) {
+        const dbPlan = subscription.plan;
+        baseLimits.maxActiveStreams = dbPlan.max_active_streams ?? baseLimits.maxActiveStreams;
+        baseLimits.maxStorageGB = dbPlan.max_storage_gb ?? baseLimits.maxStorageGB;
+        baseLimits.maxAiResponsesPerDay = dbPlan.max_ai_responses_day ?? baseLimits.maxAiResponsesPerDay;
+        baseLimits.maxScheduledSessions = dbPlan.max_scheduled_sessions ?? baseLimits.maxScheduledSessions;
+        baseLimits.maxTeamMembers = dbPlan.max_team_members ?? baseLimits.maxTeamMembers;
+        baseLimits.canUseCustomVoices = dbPlan.can_use_custom_voices ?? baseLimits.canUseCustomVoices;
+    }
+
+    // Apply dynamic trial overrides if applicable (only if on free_trial and NOT specifically managed in plans table)
+    // Note: If free_trial is in the plans table, the logic above already handled it.
+    // This part is kept for backward compatibility with the trial settings in system_settings.
+    if (planCode === "free_trial" && !subscription?.plan) {
         try {
             const settings = await (prisma as any).system_settings.findFirst();
             if (settings) {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import TenantStatusActions from "@/components/ops/TenantStatusActions";
 import Link from "next/link";
 import PlatformConfig from "@/components/ops/PlatformConfig";
+import { DollarSign } from "lucide-react";
 
 export default async function OpsPage() {
   const [
@@ -77,8 +78,16 @@ export default async function OpsPage() {
           Monitoring terpusat untuk aktivitas tenant, audit akses, dan metering penggunaan platform.
         </p>
         
-        <div className="mt-8 pt-8 border-t border-slate-800">
+        <div className="mt-8 flex flex-wrap gap-4 pt-8 border-t border-slate-800">
            <PlatformConfig />
+           <Link 
+             href="/ops/plans"
+             className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-300 transition-all hover:border-rose-500 hover:bg-rose-500/20"
+           >
+             <>
+               <DollarSign size={16} /> Manage Commercial Plans
+             </>
+           </Link>
         </div>
       </section>
 

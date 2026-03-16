@@ -28,6 +28,7 @@ model tenants {
   settings      tenant_settings?
   secrets       tenant_secrets[]
   subscriptions subscriptions[]
+  transactions  transactions[]
   usage_records usage_records[]
   audit_logs     audit_logs[]
 }
@@ -271,12 +272,57 @@ model tenant_secrets {
   @@unique([tenant_id, key])
 }
 
+model transactions {
+  id              String   @id @default(uuid())
+  order_id        String   @unique
+  tenant_id       String
+  plan_code       String
+  amount          Decimal  @db.Decimal(18, 2)
+  currency        String   @default("IDR")
+  status          String   @default("pending") // pending, settlement, expire, cancel
+  payment_type    String?
+  transaction_id  String?  @unique
+  fraud_status    String?
+  metadata        Json?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([status])
+}
+
+model plans {
+  id                    String   @id @default(uuid())
+  code                  String   @unique // e.g., "creator", "studio"
+  name                  String
+  description           String?
+  price_idr             Decimal  @db.Decimal(18, 2)
+  price_myr             Decimal  @db.Decimal(18, 2)
+  
+  // Limits
+  max_active_streams    Int      @default(1)
+  max_storage_gb        Int      @default(2)
+  max_ai_responses_day  Int      @default(100)
+  max_scheduled_sessions Int     @default(5)
+  max_team_members      Int      @default(1)
+  can_use_custom_voices Boolean  @default(false)
+  
+  active                Boolean  @default(true)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  subscriptions         subscriptions[]
+}
+
 model subscriptions {
   id                       String   @id @default(uuid())
   tenant_id                String
-  plan_code                String
-  status                   String   @default("trialing")
-  billing_provider         String?
+  plan_code                String?
+  plan_period              String   @default("monthly") // monthly, yearly
+  status                   String   @default("trialing") // active, trialing, past_due, canceled
+  billing_provider         String?  @default("midtrans")
   billing_customer_id      String?
   billing_subscription_id  String?
   trial_ends_at            DateTime?
@@ -285,6 +331,9 @@ model subscriptions {
   updated_at               DateTime @updatedAt
 
   tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  plan   plans?  @relation(fields: [plan_code], references: [code])
+
+  @@index([tenant_id])
 }
 
 model usage_records {
