@@ -1,8 +1,15 @@
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 
+const IS_PROD = process.env.NODE_ENV === "production";
+const RAW_JWT_SECRET = process.env.JWT_SECRET;
+
+if (IS_PROD && (!RAW_JWT_SECRET || RAW_JWT_SECRET === "default_super_secret_dev_key_123")) {
+  throw new Error("FATAL: JWT_SECRET is missing or insecure in production!");
+}
+
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "default_super_secret_dev_key_123"
+  RAW_JWT_SECRET || "default_super_secret_dev_key_123"
 );
 
 export type AuthTokenPayload = {

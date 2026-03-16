@@ -35,32 +35,21 @@ export async function getCurrentTenantContext(): Promise<TenantContext> {
     }
   }
 
-  if (cachedTenantContext) {
-    return cachedTenantContext;
+  if (!authSession?.tenantId) {
+    throw new Error("Unauthorized: No tenant context found in session.");
   }
 
-  const tenant =
-    (await (prisma as any).tenants.findUnique({
-      where: { slug: DEFAULT_TENANT_SLUG },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-      },
-    })) ||
-    (await (prisma as any).tenants.findFirst({
-      orderBy: { created_at: "asc" },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-      },
-    }));
+  const tenant = await (prisma as any).tenants.findUnique({
+    where: { id: authSession.tenantId },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+    },
+  });
 
   if (!tenant) {
-    throw new Error(
-      "No tenant context found. Run the SaaS foundation backfill first so the default tenant is available."
-    );
+    throw new Error("Tenant not found or inactive.");
   }
 
   cachedTenantContext = tenant;
