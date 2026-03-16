@@ -1,4 +1,4 @@
-import { MidtransClient } from 'midtrans-client';
+const midtransClient = require('midtrans-client');
 
 const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
 
@@ -7,13 +7,13 @@ if (!process.env.MIDTRANS_SERVER_KEY) {
   console.warn('WARNING: MIDTRANS_SERVER_KEY is missing in .env');
 }
 
-export const midtransSnap = new MidtransClient.Snap({
+export const midtransSnap = new midtransClient.Snap({
   isProduction,
   serverKey: process.env.MIDTRANS_SERVER_KEY || '',
   clientKey: process.env.MIDTRANS_CLIENT_KEY || ''
 });
 
-export const midtransCore = new MidtransClient.CoreApi({
+export const midtransCore = new midtransClient.CoreApi({
   isProduction,
   serverKey: process.env.MIDTRANS_SERVER_KEY || '',
   clientKey: process.env.MIDTRANS_CLIENT_KEY || ''
