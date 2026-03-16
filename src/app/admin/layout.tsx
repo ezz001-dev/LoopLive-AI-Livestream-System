@@ -165,12 +165,14 @@ export default function AdminLayout({
               Panduan Singkat
             </button>
             <Link href="/admin/profile" className="flex items-center gap-3 hover:bg-slate-800 p-1 pr-3 rounded-full transition-all group">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 shadow-lg shadow-blue-500/20 flex items-center justify-center text-[10px] font-black text-white">
-                {userProfile?.display_name ? userProfile.display_name[0].toUpperCase() : userProfile?.email ? userProfile.email[0].toUpperCase() : "A"}
-              </div>
-              <span className="text-sm font-medium group-hover:text-blue-400 transition-colors">
-                {userProfile?.display_name || userProfile?.email || "Admin"}
-              </span>
+              <>
+                <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 shadow-lg shadow-blue-500/20 flex items-center justify-center text-[10px] font-black text-white">
+                  {String(userProfile?.display_name ? userProfile.display_name[0].toUpperCase() : (userProfile?.email ? userProfile.email.charAt(0).toUpperCase() : "A"))}
+                </div>
+                <span className="text-sm font-medium group-hover:text-blue-400 transition-colors">
+                  {String(userProfile?.display_name || userProfile?.email || "Admin")}
+                </span>
+              </>
             </Link>
           </div>
         </header>

@@ -80,7 +80,7 @@ export default function ProfilePage() {
           <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 flex flex-col items-center text-center space-y-4 backdrop-blur-xl">
             <div className="h-24 w-24 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 p-1 shadow-2xl shadow-blue-500/20">
               <div className="h-full w-full rounded-full bg-slate-950 flex items-center justify-center text-3xl font-black text-white">
-                {user?.display_name ? user.display_name[0].toUpperCase() : user?.email[0].toUpperCase()}
+                {user?.display_name ? user.display_name[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "A")}
               </div>
             </div>
             <div>
