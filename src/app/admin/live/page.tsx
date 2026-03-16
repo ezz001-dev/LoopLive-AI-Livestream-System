@@ -89,7 +89,11 @@ export default async function LiveSessionsPage() {
                   {new Date(session.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-5 text-right">
-                  <LiveSessionActions sessionId={session.id} initialStatus={session.status} />
+                  <LiveSessionActions 
+                    sessionId={session.id} 
+                    initialStatus={session.status} 
+                    sessionTitle={session.title}
+                  />
                 </td>
 
               </tr>

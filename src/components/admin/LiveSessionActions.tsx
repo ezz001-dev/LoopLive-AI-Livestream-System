@@ -4,16 +4,21 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Play, StopCircle, RefreshCw, Settings2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 interface LiveSessionActionsProps {
   sessionId: string;
   initialStatus: string;
+  sessionTitle?: string;
 }
 
-export default function LiveSessionActions({ sessionId, initialStatus }: LiveSessionActionsProps) {
+export default function LiveSessionActions({ sessionId, initialStatus, sessionTitle }: LiveSessionActionsProps) {
   const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const router = useRouter();
+  const { success, error: toastError } = useToast();
 
   const handleAction = async (e: React.MouseEvent, action: "start" | "stop") => {
     e.preventDefault();
@@ -28,42 +33,33 @@ export default function LiveSessionActions({ sessionId, initialStatus }: LiveSes
       
       if (res.ok) {
         setStatus(data.status || (action === "start" ? "LIVE" : "STOPPED"));
+        success(action === "start" ? "Stream Dimulai" : "Stream Dihentikan", `Sesi live berhasil ${action === "start" ? "dimulai" : "dihentikan"}.`);
         router.refresh();
       } else {
-        alert(`Error: ${data.error || "Failed to execute action"}`);
+        toastError("Gagal Eksekusi", data.error || "Gagal menjalankan aksi stream.");
       }
     } catch (error) {
-      console.error("Action failed:", error);
-      alert("Network error occurred");
+      toastError("Kesalahan Jaringan", "Tidak dapat terhubung ke server.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!confirm("Are you sure you want to delete this session? This action cannot be undone.")) {
-      return;
-    }
-
-    setLoading(true);
+  const handleDelete = async () => {
     try {
       const res = await fetch(`/api/live/${sessionId}`, {
         method: "DELETE",
       });
       if (res.ok) {
+        success("Sesi Dihapus", "Sesi live berhasil dihapus selamanya.");
         router.refresh();
       } else {
         const data = await res.json();
-        alert(`Error: ${data.error || "Failed to delete session"}`);
+        toastError("Gagal Menghapus", data.error || "Gagal menghapus sesi live.");
       }
     } catch (error) {
-      console.error("Delete failed:", error);
-      alert("Network error occurred");
-    } finally {
-      setLoading(false);
+      toastError("Kesalahan Jaringan", "Gagal menghubungi server.");
+      throw error;
     }
   };
 
@@ -98,13 +94,26 @@ export default function LiveSessionActions({ sessionId, initialStatus }: LiveSes
       </Link>
 
       <button 
-        onClick={handleDelete}
+        onClick={(e) => {
+           e.preventDefault();
+           e.stopPropagation();
+           setIsConfirmOpen(true);
+        }}
         disabled={loading || status === 'LIVE'}
-        className="p-2 rounded-lg bg-slate-800 hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors disabled:opacity-30 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed"
         title={status === 'LIVE' ? "Cannot delete active stream" : "Delete Session"}
       >
         <Trash2 size={18} />
       </button>
+
+      <ConfirmModal 
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Hapus Sesi Live?"
+        message={`Apakah Anda yakin ingin menghapus sesi "${sessionTitle || 'ini'}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus Sesi"
+      />
     </div>
   );
 }

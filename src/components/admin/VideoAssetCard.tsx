@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ExternalLink, FileVideo, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/context/ToastContext";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 interface VideoAssetCardProps {
   video: {
@@ -18,13 +20,15 @@ interface VideoAssetCardProps {
 
 export default function VideoAssetCard({ video }: VideoAssetCardProps) {
   const router = useRouter();
+  const { success, error: toastError, info } = useToast();
   const [deleting, setDeleting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const previewUrl = video.public_url || video.file_path;
 
   const handleOpen = () => {
     if (!previewUrl) {
-      alert("Video URL is not available for preview.");
+      info("Preview Tidak Tersedia", "URL video belum tersedia untuk pemutaran.");
       return;
     }
 
@@ -32,12 +36,6 @@ export default function VideoAssetCard({ video }: VideoAssetCardProps) {
   };
 
   const handleDelete = async () => {
-    const confirmed = window.confirm(
-      `Delete "${video.filename}" from the library?`
-    );
-    if (!confirmed) return;
-
-    setDeleting(true);
     try {
       const res = await fetch(`/api/videos/${video.id}`, {
         method: "DELETE",
@@ -45,14 +43,14 @@ export default function VideoAssetCard({ video }: VideoAssetCardProps) {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to delete video");
+        throw new Error(data.error || "Gagal menghapus video");
       }
 
+      success("Video Dihapus", `"${video.filename}" telah dihapus.`);
       router.refresh();
     } catch (error: any) {
-      alert(error.message || "Failed to delete video");
-    } finally {
-      setDeleting(false);
+      toastError("Gagal Menghapus", error.message || "Terjadi kesalahan sistem.");
+      throw error;
     }
   };
 
@@ -96,12 +94,11 @@ export default function VideoAssetCard({ video }: VideoAssetCardProps) {
               <ExternalLink size={16} />
             </button>
             <button
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={() => setIsConfirmOpen(true)}
               className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors disabled:opacity-50"
               title="Delete Video"
             >
-              {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              <Trash2 size={16} />
             </button>
           </div>
           <span className="text-[10px] text-slate-600 font-mono">
@@ -109,6 +106,15 @@ export default function VideoAssetCard({ video }: VideoAssetCardProps) {
           </span>
         </div>
       </div>
+
+      <ConfirmModal 
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Hapus Video?"
+        message={`Apakah Anda yakin ingin menghapus "${video.filename}"? File ini akan dihapus permanen dari server.`}
+        confirmText="Hapus Video"
+      />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Edit2, Save, X, Youtube, Clock, Calendar, Repeat, Plus, Trash2 } from "lucide-react";
+import { useToast } from "@/context/ToastContext";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 interface EditSessionModalProps {
   sessionId: string;
@@ -31,6 +33,7 @@ interface EditSessionModalProps {
 }
 
 export default function EditSessionModal({ sessionId, initialData, onClose, onSave }: EditSessionModalProps) {
+  const { success, error: toastError } = useToast();
   const [formData, setFormData] = useState(initialData);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +44,7 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
   const [loadingSchedules, setLoadingSchedules] = useState(false);
   const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [newSchedule, setNewSchedule] = useState({
     schedule_type: 'one-time',
     scheduled_at: '',
@@ -145,14 +149,16 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
     }
   }
 
-  async function handleDeleteSchedule(scheduleId: string) {
-    if (!confirm('Delete this schedule?')) return;
+  async function handleDeleteSchedule() {
+    if (!confirmDeleteId) return;
     try {
-      const res = await fetch(`/api/live/${sessionId}/schedule/${scheduleId}`, {
+      const res = await fetch(`/api/live/${sessionId}/schedule/${confirmDeleteId}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Failed to delete schedule');
+      if (!res.ok) throw new Error('Gagal menghapus jadwal');
       
+      success("Jadwal Dihapus", "Entri jadwal live berhasil dihapus.");
+
       // If no schedules left, the API might have disabled schedule_enabled
       if (schedules.length <= 1) {
         setFormData(prev => ({ ...prev, schedule_enabled: false }));
@@ -160,8 +166,10 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
       }
       
       await loadSchedules();
+      setConfirmDeleteId(null);
     } catch (err: any) {
-      setError(err.message);
+      toastError("Gagal Menghapus", err.message || "Terjadi kesalahan sistem.");
+      throw err;
     }
   }
 
@@ -532,7 +540,7 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteSchedule(schedule.id)}
+                              onClick={() => setConfirmDeleteId(schedule.id)}
                               className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                               title="Delete"
                             >
@@ -758,6 +766,15 @@ export default function EditSessionModal({ sessionId, initialData, onClose, onSa
           </div>
         </form>
       </div>
+
+      <ConfirmModal 
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleDeleteSchedule}
+        title="Hapus Jadwal?"
+        message="Apakah Anda yakin ingin menghapus entri jadwal ini dari sesi?"
+        confirmText="Hapus Jadwal"
+      />
     </div>
   );
 }
