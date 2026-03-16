@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export type PlanLimits = {
+    planName: string;
     maxActiveStreams: number;
     maxStorageGB: number;
     maxAiResponsesPerDay: number;
@@ -9,7 +10,9 @@ export type PlanLimits = {
     canUseCustomVoices: boolean;
 };
 
-export const PLANS: Record<string, PlanLimits> = {
+type BasePlanLimits = Omit<PlanLimits, 'planName'>;
+
+export const PLANS: Record<string, BasePlanLimits> = {
     "free_trial": {
         maxActiveStreams: 1,
         maxStorageGB: 2,
@@ -55,7 +58,10 @@ export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
     });
 
     const planCode = subscription?.plan_code || "free_trial";
-    const baseLimits = { ...(PLANS[planCode] || PLANS["free_trial"]) };
+    const baseLimits: PlanLimits = { 
+        planName: subscription?.plan?.name || (planCode === "free_trial" ? "Free Trial" : planCode),
+        ...(PLANS[planCode] || PLANS["free_trial"]) 
+    };
 
     // If we have a DB plan record, use its values
     if (subscription?.plan) {

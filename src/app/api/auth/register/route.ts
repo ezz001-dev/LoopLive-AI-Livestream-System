@@ -98,6 +98,26 @@ export async function POST(req: Request) {
                 }
             });
 
+            // 4. Check for pending invitations
+            const pendingInvites = await tx.invitations.findMany({
+                where: { email, status: "pending" }
+            });
+
+            for (const invite of pendingInvites) {
+                await tx.tenant_users.create({
+                    data: {
+                        tenant_id: invite.tenant_id,
+                        user_id: user.id,
+                        role: invite.role,
+                    }
+                });
+
+                await tx.invitations.update({
+                    where: { id: invite.id },
+                    data: { status: "accepted" }
+                });
+            }
+
             return { user, tenant };
         });
 

@@ -31,6 +31,7 @@ model tenants {
   transactions  transactions[]
   usage_records usage_records[]
   audit_logs     audit_logs[]
+  invitations    invitations[]
 }
 
 model users {
@@ -362,4 +363,19 @@ model audit_logs {
 
   tenant tenants? @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   user   users?   @relation(fields: [actor_user_id], references: [id], onDelete: SetNull)
+}
+
+model invitations {
+  id         String   @id @default(uuid())
+  tenant_id  String
+  email      String
+  role       String   @default("member")
+  status     String   @default("pending") // pending, accepted, canceled
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  tenant tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([email])
 }
