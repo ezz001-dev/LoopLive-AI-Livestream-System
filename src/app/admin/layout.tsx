@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard, User, Users } from "lucide-react";
+import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard, User, Users, Menu, X } from "lucide-react";
 import TourGuide from "../../components/admin/TourGuide";
 import SubscriptionStatus from "../../components/SubscriptionStatus";
 
@@ -49,6 +49,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [canAccessOps, setCanAccessOps] = React.useState(false);
   const [userProfile, setUserProfile] = React.useState<any>(null);
 
@@ -105,18 +106,44 @@ export default function AdminLayout({
     }
   };
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  // Close mobile menu on route change
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-slate-950">
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[40] lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
-        <div className="p-6" id="tour-logo">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            LoopLive AI
-          </h1>
-          <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-semibold">Workspace</p>
+      <aside className={`
+        fixed inset-y-0 left-0 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-300 z-[50] lg:static lg:translate-x-0
+        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+      `}>
+        <div className="p-6 flex items-center justify-between" id="tour-logo">
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              LoopLive AI
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-semibold">Workspace</p>
+          </div>
+          <button 
+            className="lg:hidden p-2 text-slate-400 hover:text-white"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-4">
+        <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
           <NavLink href="/admin" id="tour-nav-dashboard" icon={<LayoutDashboard size={20} className="group-hover:scale-110 transition-transform" />} label="Ringkasan" />
           <NavLink href="/admin/videos" id="tour-nav-videos" icon={<Video size={20} className="group-hover:scale-110 transition-transform" />} label="Video" />
           <NavLink href="/admin/live" id="tour-nav-live" icon={<Radio size={20} className="group-hover:scale-110 transition-transform" />} label="Sesi Live" />
@@ -151,27 +178,35 @@ export default function AdminLayout({
 
 
       {/* Main Content */}
-      <main className="flex-1 bg-slate-950 overflow-y-auto">
-        <header className="h-16 border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4 text-slate-500 text-sm">
-            <span className="hover:text-slate-300 cursor-pointer">Pages</span>
-            <span>/</span>
-            <span className="text-slate-100 font-medium">Dashboard</span>
-          </div>
+      <main className="flex-1 overflow-x-hidden overflow-y-auto flex flex-col h-screen">
+        <header className="h-16 border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
+              className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <Menu size={24} />
+            </button>
+            <div className="hidden md:flex items-center gap-4 text-slate-500 text-sm">
+              <span className="hover:text-slate-300 cursor-pointer">Pages</span>
+              <span>/</span>
+              <span className="text-slate-100 font-medium">Dashboard</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <button 
               id="start-tour-button"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-all"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-all"
             >
               <HelpCircle size={14} />
               Panduan Singkat
             </button>
-            <Link href="/admin/profile" className="flex items-center gap-3 hover:bg-slate-800 p-1 pr-3 rounded-full transition-all group">
+            <Link href="/admin/profile" className="flex items-center gap-2 md:gap-3 hover:bg-slate-800 p-1 md:pr-3 rounded-full transition-all group">
               <>
                 <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 shadow-lg shadow-blue-500/20 flex items-center justify-center text-[10px] font-black text-white">
                   {String(userProfile?.display_name ? userProfile.display_name[0].toUpperCase() : (userProfile?.email ? userProfile.email.charAt(0).toUpperCase() : "A"))}
                 </div>
-                <span className="text-sm font-medium group-hover:text-blue-400 transition-colors">
+                <span className="text-sm font-medium group-hover:text-blue-400 transition-colors hidden sm:inline">
                   {String(userProfile?.display_name || userProfile?.email || "Admin")}
                 </span>
               </>
@@ -179,7 +214,7 @@ export default function AdminLayout({
           </div>
         </header>
 
-        <div className="p-8">
+        <div className="p-4 md:p-8">
           {children}
         </div>
         <TourGuide />

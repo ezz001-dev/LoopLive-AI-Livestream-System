@@ -115,12 +115,12 @@ export default function BillingPage() {
                 data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
             />
 
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
                 <div>
-                    <h1 className="text-3xl font-black text-white">Tagihan & Paket</h1>
-                    <p className="text-slate-500 mt-1">Kelola langganan dan batas penggunaan Anda.</p>
+                    <h1 className="text-2xl md:text-3xl font-black text-white">Tagihan & Paket</h1>
+                    <p className="text-slate-500 mt-1 text-sm md:text-base">Kelola langganan dan batas penggunaan Anda.</p>
                 </div>
-                <div className="px-4 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-bold flex items-center gap-2">
+                <div className="px-4 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs md:text-sm font-bold flex items-center gap-2 self-start md:self-auto">
                     <ShieldCheck size={16} />
                     Diproteksi LoopLive Billing
                 </div>
@@ -128,25 +128,25 @@ export default function BillingPage() {
 
             {/* Current Plan Overview */}
             {subscription && (
-                <div className="rounded-[32px] border border-slate-800 bg-slate-900/40 p-8 flex flex-wrap items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                        <div className="h-16 w-16 rounded-3xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-600/20">
-                            <Zap size={32} />
+                <div className="rounded-2xl md:rounded-[32px] border border-slate-800 bg-slate-900/40 p-6 md:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                    <div className="flex items-center gap-4 md:gap-6 w-full sm:w-auto">
+                        <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl md:rounded-3xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-600/20 shrink-0">
+                            <Zap size={24} className="md:size-32" />
                         </div>
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Paket Aktif</p>
-                            <h3 className="text-2xl font-black text-white">{subscription.plan?.name || subscription.plan_code}</h3>
-                            <p className="text-sm text-slate-400 font-medium">
-                                Berakhir pada {(() => {
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Paket Aktif</p>
+                            <h3 className="text-xl md:text-2xl font-black text-white truncate">{subscription.plan?.name || subscription.plan_code}</h3>
+                            <p className="text-xs md:text-sm text-slate-400 font-medium truncate">
+                                Berakhir {(() => {
                                     const dateStr = subscription.current_period_end || subscription.trial_ends_at;
                                     if (!dateStr) return "-";
-                                    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                                    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
                                 })()}
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                    <div className="flex items-center gap-3 w-full sm:w-auto pt-4 sm:pt-0 border-t border-slate-800 sm:border-t-0">
+                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-center w-full sm:w-auto ${
                             subscription.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         }`}>
                             {subscription.status}
@@ -159,12 +159,12 @@ export default function BillingPage() {
             <UsageDashboard />
 
             {/* Scale Your Studio */}
-            <div className="text-center py-8">
-                <h2 className="text-3xl font-black text-white mb-2">Pilih Paket Masa Depan Anda</h2>
-                <p className="text-slate-500">Tingkatkan kapasitas streaming dan respon AI Anda sekarang.</p>
+            <div className="text-center py-6 md:py-8">
+                <h2 className="text-2xl md:text-3xl font-black text-white mb-2">Pilih Paket Anda</h2>
+                <p className="text-sm md:text-base text-slate-500">Tingkatkan kapasitas streaming dan respon AI Anda.</p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 pb-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 pb-12">
                 {plans.filter(p => p.code !== 'free_trial').map((plan) => {
                     const isCurrent = subscription?.plan_code === plan.code;
                     const isUpgrading = upgradingCode === plan.code;
@@ -172,20 +172,20 @@ export default function BillingPage() {
                     return (
                         <div 
                             key={plan.id} 
-                            className={`relative rounded-[32px] border ${isCurrent ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-800 bg-slate-900/40'} p-8 flex flex-col transition-all hover:scale-[1.02] hover:shadow-2xl`}
+                            className={`relative rounded-2xl md:rounded-[32px] border ${isCurrent ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-slate-800 bg-slate-900/40'} p-6 md:p-8 flex flex-col transition-all hover:scale-[1.01] md:hover:scale-[1.02] hover:shadow-2xl`}
                         >
                             {isCurrent && (
-                                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full shadow-lg">
-                                    Paket Anda Saat Ini
+                                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] px-3 md:px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap">
+                                    Paket Saat Ini
                                 </div>
                             )}
-                            <h3 className="text-xl font-black text-white mb-1">{plan.name}</h3>
-                            <div className="flex items-baseline gap-1 mb-8">
-                                <span className="text-3xl font-black text-white">Rp {Number(plan.price_idr).toLocaleString('id-ID')}</span>
-                                <span className="text-slate-500 font-bold text-sm">/bln</span>
+                            <h3 className="text-lg md:text-xl font-black text-white mb-1">{plan.name}</h3>
+                            <div className="flex items-baseline gap-1 mb-6 md:mb-8">
+                                <span className="text-2xl md:text-3xl font-black text-white">Rp {Number(plan.price_idr).toLocaleString('id-ID')}</span>
+                                <span className="text-slate-500 font-bold text-xs md:text-sm">/bln</span>
                             </div>
 
-                            <ul className="space-y-4 mb-10 flex-1">
+                            <ul className="space-y-3 md:space-y-4 mb-8 md:mb-10 flex-1">
                                 <PlanFeature icon={<Zap />} text={`${plan.max_active_streams} Stream Aktif`} />
                                 <PlanFeature icon={<MessageSquare />} text={`${plan.max_ai_responses_day} Respon AI/hari`} />
                                 <PlanFeature icon={<HardDrive />} text={`${plan.max_storage_gb}GB Penyimpanan`} />
@@ -196,7 +196,7 @@ export default function BillingPage() {
                             <button 
                                 onClick={() => handleUpgrade(plan.code)}
                                 disabled={isCurrent || isUpgrading}
-                                className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                                className={`w-full py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs transition-all active:scale-95 flex items-center justify-center gap-2 ${
                                     isCurrent 
                                     ? 'bg-slate-800 text-slate-500 cursor-default' 
                                     : 'bg-blue-600 text-white shadow-xl shadow-blue-600/20 hover:bg-blue-500'

@@ -28,12 +28,12 @@ type UploadInitResponse =
     };
 
 export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { success, error } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusText, setStatusText] = useState("Uploading File...");
   const router = useRouter();
-  const { success, error: toastError } = useToast();
 
   if (!isOpen) return null;
 
@@ -154,23 +154,23 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       router.refresh();
       success("Video Berhasil!", `${file.name} telah ditambahkan ke library.`);
     } catch (error: any) {
-      toastError("Upload Gagal", error.message || "Unknown error");
+      error("Upload Gagal", error.message || "Unknown error");
       resetState();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-          <h3 className="font-bold text-white uppercase tracking-widest text-xs">Tambah Video Baru</h3>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="px-5 md:px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+          <h3 className="font-bold text-white uppercase tracking-widest text-[10px] md:text-xs">Tambah Video Baru</h3>
           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 transition-colors">
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleUpload} className="p-8 space-y-6">
-          <div className="border-2 border-dashed border-slate-800 rounded-2xl p-8 flex flex-col items-center justify-center text-center hover:border-blue-500/50 hover:bg-blue-500/5 transition-all relative">
+        <form onSubmit={handleUpload} className="p-6 md:p-8 space-y-5 md:space-y-6">
+          <div className="border-2 border-dashed border-slate-800 rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center text-center hover:border-blue-500/50 hover:bg-blue-500/5 transition-all relative">
             <input
               type="file"
               accept="video/*"
@@ -179,28 +179,28 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
             />
             {file ? (
                <div className="flex flex-col items-center gap-2">
-                  <div className="h-12 w-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                  <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
                      <FileVideo size={24} />
                   </div>
-                  <p className="text-sm font-medium text-slate-200 truncate max-w-[200px]">{file.name}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest">Selected</p>
+                  <p className="text-xs md:text-sm font-medium text-slate-200 truncate max-w-[180px] md:max-w-[200px]">{file.name}</p>
+                  <p className="text-[9px] md:text-[10px] text-slate-500 uppercase tracking-widest">Selected</p>
                </div>
             ) : (
               <>
-                <Upload size={32} className="text-slate-600 mb-4" />
-                <p className="text-sm text-slate-400">Drag & drop your video or click to browse</p>
-                <p className="text-[10px] text-slate-600 mt-2 uppercase tracking-widest">Max 2GB</p>
+                <Upload size={28} className="text-slate-600 mb-3 md:mb-4" />
+                <p className="text-xs md:text-sm text-slate-400">Drag & drop your video or click to browse</p>
+                <p className="text-[9px] md:text-[10px] text-slate-600 mt-2 uppercase tracking-widest">Max 2GB</p>
               </>
             )}
           </div>
 
           {uploading && (
             <div className="space-y-2">
-                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+                <div className="flex items-center justify-between text-[9px] md:text-[10px] font-bold uppercase tracking-widest">
                 <span className="text-slate-500">{statusText}</span>
                 <span className="text-blue-400">{uploadProgress}%</span>
               </div>
-              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-1.5 md:h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-500 transition-all duration-300 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
                   style={{ width: `${uploadProgress}%` }}
@@ -209,24 +209,22 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
              <button
                type="button"
                disabled={uploading}
                onClick={onClose}
-               className="flex-1 py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold hover:bg-slate-800 transition-all text-sm"
+               className="order-2 sm:order-1 flex-1 py-3 px-4 rounded-xl border border-slate-800 text-slate-400 font-bold hover:bg-slate-800 transition-all text-xs md:text-sm"
              >
                Cancel
              </button>
              <button
                type="submit"
                disabled={!file || uploading}
-               className="flex-[2] py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 active:scale-95 text-sm flex items-center justify-center gap-2"
+               className="order-1 sm:order-2 flex-[2] py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 active:scale-95 text-xs md:text-sm flex items-center justify-center gap-2"
              >
-               <>
-                 {uploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
-                 <span>{uploading ? "Uploading..." : "Publish Asset"}</span>
-               </>
+               {uploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
+               <span>{uploading ? "Uploading..." : "Publish Asset"}</span>
              </button>
           </div>
         </form>

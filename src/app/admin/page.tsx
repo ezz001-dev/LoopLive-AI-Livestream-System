@@ -35,12 +35,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">System Overview</h2>
-          <p className="text-slate-400 mt-1">Monitor your AI livestream infrastructure performance.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">System Overview</h2>
+          <p className="text-slate-400 mt-1 text-sm md:text-base">Monitor your AI livestream infrastructure performance.</p>
         </div>
-        <LiveSessionsHeader />
+        <div className="flex items-center gap-3">
+          <LiveSessionsHeader />
+        </div>
       </div>
 
       <div id="tour-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

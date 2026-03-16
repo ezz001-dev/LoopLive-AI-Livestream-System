@@ -65,15 +65,15 @@ export default function UsageDashboard() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Time Filter */}
-      <div className="flex justify-end">
-        <div className="inline-flex bg-slate-900 border border-slate-800 p-1 rounded-2xl">
+      <div className="flex justify-center md:justify-end">
+        <div className="inline-flex bg-slate-900 border border-slate-800 p-1 rounded-2xl w-full sm:w-auto">
           {[7, 30, 90].map((d) => (
             <button
               key={d}
               onClick={() => setDays(d)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 rounded-xl text-[10px] md:text-xs font-bold transition-all ${
                 days === d ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20" : "text-slate-400 hover:text-white"
               }`}
             >
@@ -84,20 +84,20 @@ export default function UsageDashboard() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {metrics.map((m) => {
           const val = data?.totals[m.key] || 0;
           return (
-            <div key={m.label} className="bg-slate-950 border border-slate-800 p-6 rounded-3xl group hover:border-slate-700 transition-colors">
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2 rounded-xl bg-slate-900 ${m.color}`}>
-                  <m.icon size={20} />
+            <div key={m.label} className="bg-slate-950 border border-slate-800 p-4 md:p-6 rounded-2xl md:rounded-3xl group hover:border-slate-700 transition-colors">
+              <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+                <div className={`p-1.5 md:p-2 rounded-lg md:rounded-xl bg-slate-900 ${m.color}`}>
+                  <m.icon size={16} />
                 </div>
-                <span className="text-xs font-black uppercase tracking-widest text-slate-500">{m.label}</span>
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-500 truncate">{m.label}</span>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-white">{Math.round(val).toLocaleString()}</span>
-                <span className="text-xs font-bold text-slate-600">Total</span>
+              <div className="flex items-baseline gap-1 md:gap-2">
+                <span className="text-xl md:text-3xl font-black text-white">{Math.round(val).toLocaleString()}</span>
+                <span className="text-[9px] md:text-xs font-bold text-slate-600">Total</span>
               </div>
             </div>
           );
@@ -105,18 +105,18 @@ export default function UsageDashboard() {
       </div>
 
       {/* Main Chart */}
-      <div className="bg-slate-950 border border-slate-800 p-8 rounded-3xl">
-        <div className="flex items-center justify-between mb-8">
+      <div className="bg-slate-950 border border-slate-800 p-5 md:p-8 rounded-2xl md:rounded-3xl">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-               <TrendingUp className="text-cyan-500" size={20} />
+            <h3 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+               <TrendingUp className="text-cyan-500" size={18} />
                Tren Penggunaan
             </h3>
-            <p className="text-sm text-slate-500">Pemakaian resource {days} hari terakhir</p>
+            <p className="text-xs md:text-sm text-slate-500">Pemakaian resource {days} hari terakhir</p>
           </div>
         </div>
 
-        <div className="h-80 w-full">
+        <div className="h-60 md:h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data?.stats || []}>
               <defs>
