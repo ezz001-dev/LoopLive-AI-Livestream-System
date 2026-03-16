@@ -214,7 +214,7 @@ export default function AdminLayout({
           </div>
         </header>
 
-        <div className="flex-1 p-4 md:p-8 pb-32 md:pb-8">
+        <div className="flex-1 p-4 md:p-8 pb-32 md:pb-32 lg:pb-16">
           {children}
         </div>
         <TourGuide />

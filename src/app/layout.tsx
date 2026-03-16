@@ -14,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-50 min-h-screen font-sans" suppressHydrationWarning>
+      <body className="bg-slate-950 text-slate-50 min-h-[100dvh] font-sans" suppressHydrationWarning>
         <ToastProvider>
           {children}
         </ToastProvider>
