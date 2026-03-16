@@ -114,7 +114,7 @@ export default function AdminLayout({
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="flex min-h-[100dvh] bg-slate-950">
       {/* Mobile Backdrop */}
       {isMobileMenuOpen && (
         <div 
@@ -178,8 +178,8 @@ export default function AdminLayout({
 
 
       {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden overflow-y-auto flex flex-col h-screen">
-        <header className="h-16 border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between">
+      <main className="flex-1 overflow-x-hidden flex flex-col min-h-[100dvh]">
+        <header className="h-16 border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <button 
               className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"
@@ -214,7 +214,7 @@ export default function AdminLayout({
           </div>
         </header>
 
-        <div className="p-4 md:p-8">
+        <div className="flex-1 p-4 md:p-8 pb-32 md:pb-8">
           {children}
         </div>
         <TourGuide />
