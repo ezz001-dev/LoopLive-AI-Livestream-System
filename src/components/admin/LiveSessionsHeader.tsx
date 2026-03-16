@@ -18,7 +18,12 @@ export default function LiveSessionsHeader() {
         Create New Session
       </button>
 
-      {showModal && <CreateSessionModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <CreateSessionModal 
+          isOpen={showModal} 
+          onClose={() => setShowModal(false)} 
+        />
+      )}
     </>
   );
 }
