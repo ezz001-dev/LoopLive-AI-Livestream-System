@@ -15,7 +15,13 @@ export async function POST(req: Request) {
 
     // Reconstruction of draft for helper
     const draft = {
-      ...video,
+      id: video.id,
+      originalFilename: video.filename,
+      fileType: video.file_type,
+      storageProvider: video.storage_provider,
+      storageKey: video.storage_key,
+      filePath: video.file_path,
+      publicUrl: video.public_url,
       tenantId,
       fileSize: BigInt(video.file_size),
     };
