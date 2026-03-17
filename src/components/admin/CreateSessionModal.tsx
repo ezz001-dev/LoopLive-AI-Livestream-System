@@ -48,7 +48,7 @@ export default function CreateSessionModal({
       const res = await fetch("/api/videos");
       if (res.ok) {
         const data = await res.json();
-        setVideos(data);
+        setVideos(Array.isArray(data) ? data : (data.items || []));
       }
     } catch (err) {
       console.error(err);
@@ -77,7 +77,7 @@ export default function CreateSessionModal({
     setError("");
 
     try {
-      const res = await fetch("/api/sessions", {
+      const res = await fetch("/api/live", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
