@@ -13,6 +13,7 @@ export default async function OpsPage() {
     tenants,
     recentAudits,
     usageStats,
+    recentLogs,
   ] = await Promise.all([
     (prisma as any).tenants.count(),
     (prisma as any).users.count(),
@@ -46,6 +47,15 @@ export default async function OpsPage() {
       _sum: {
         quantity: true,
       },
+    }),
+    (prisma as any).tenant_logs.findMany({
+        orderBy: { created_at: "desc" },
+        take: 10,
+        include: {
+            tenant: {
+                select: { name: true, slug: true }
+            }
+        }
     }),
   ]);
 
@@ -235,6 +245,64 @@ export default async function OpsPage() {
           </div>
         </div>
       </div>
+
+      {/* Error Monitoring Section */}
+      <section className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+            Active Error Monitoring
+          </h3>
+          <span className="text-xs font-bold uppercase tracking-widest text-rose-400">
+            {recentLogs.length} recent issues
+          </span>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+          {recentLogs.length > 0 ? (
+            recentLogs.map((log: any) => (
+              <div key={log.id} className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5 hover:border-rose-500/30 transition-all">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="rounded-md bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-rose-400">
+                        {log.level}
+                      </span>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        {log.tenant?.name || "Global"}
+                      </span>
+                      <span className="text-[10px] text-slate-600 font-mono">
+                         {log.component || "N/A"}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-white line-clamp-2">{log.message}</p>
+                    
+                    {log.metadata && (
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 bg-slate-900/50 rounded-xl border border-white/5">
+                        {Object.entries(log.metadata).map(([key, val]: [string, any]) => (
+                          <div key={key} className="min-w-0">
+                            <p className="text-[9px] uppercase tracking-widest text-slate-500 truncate">{key}</p>
+                            <p className="text-[10px] text-slate-300 truncate">{String(val)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                      {new Date(log.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-800 p-12 text-center">
+              <p className="text-sm text-slate-500 italic">No errors reported in the last cycle. System stable.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

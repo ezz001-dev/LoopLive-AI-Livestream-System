@@ -32,6 +32,7 @@ model tenants {
   usage_records usage_records[]
   audit_logs     audit_logs[]
   invitations    invitations[]
+  logs           tenant_logs[]
 }
 
 model users {
@@ -378,4 +379,21 @@ model invitations {
 
   @@index([tenant_id])
   @@index([email])
+}
+
+model tenant_logs {
+  id         String   @id @default(uuid())
+  tenant_id  String?
+  level      String   @default("error") // error, warn, info
+  message    String   @db.Text
+  stack      String?  @db.Text
+  component  String?
+  metadata   Json?    // Store browser info, device type, file size, etc.
+  created_at DateTime @default(now())
+
+  tenant tenants? @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([level])
+  @@index([created_at])
 }

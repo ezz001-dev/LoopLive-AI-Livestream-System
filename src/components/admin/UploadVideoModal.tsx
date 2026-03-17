@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Upload, X, RefreshCw, FileVideo } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/context/ToastContext";
+import { logger } from "@/lib/logger";
 
 type UploadInitResponse =
   | {
@@ -155,6 +156,16 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       success("Video Berhasil!", `${file.name} telah ditambahkan ke library.`);
     } catch (error: any) {
       toastError("Upload Gagal", error.message || "Unknown error");
+      // Report to Ops Console
+      logger.error(`Upload failed: ${error.message}`, {
+        component: "UploadVideoModal",
+        metadata: {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          stack: error.stack
+        }
+      });
       resetState();
     }
   };
