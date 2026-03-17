@@ -138,7 +138,7 @@ export default function ClientSessionPage({ session }: ClientSessionPageProps) {
   // Initialize Socket for TTS Playback
   useEffect(() => {
     const socketUrl = typeof window !== "undefined" 
-      ? `http://${window.location.hostname}:3001`
+      ? window.location.origin
       : "http://localhost:3001";
       
     console.log("[ClientSessionPage] Initializing socket to:", socketUrl);

@@ -28,7 +28,7 @@ type UploadInitResponse =
     };
 
 export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { success, error } = useToast();
+  const { success, error: toastError } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -154,7 +154,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       router.refresh();
       success("Video Berhasil!", `${file.name} telah ditambahkan ke library.`);
     } catch (error: any) {
-      error("Upload Gagal", error.message || "Unknown error");
+      toastError("Upload Gagal", error.message || "Unknown error");
       resetState();
     }
   };

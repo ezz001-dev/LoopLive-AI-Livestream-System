@@ -80,8 +80,8 @@ export default function PublicLivePage({ params }: { params: Promise<{ id: strin
     const video = videoRef.current;
     if (!video) return;
 
-    // MediaMTX HLS URL (internal preview bridge)
-    const hlsUrl = `http://localhost:8888/live/${liveId}/index.m3u8`;
+    // MediaMTX HLS URL (proxied via Nginx)
+    const hlsUrl = `/hls/live/${liveId}/index.m3u8`;
 
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -113,7 +113,7 @@ export default function PublicLivePage({ params }: { params: Promise<{ id: strin
   // 2. Initialize WebSocket
   useEffect(() => {
     const socketUrl = typeof window !== "undefined" 
-      ? `http://${window.location.hostname}:3001`
+      ? window.location.origin
       : "http://localhost:3001";
 
     console.log("[PublicLivePage] Initializing socket to:", socketUrl);
