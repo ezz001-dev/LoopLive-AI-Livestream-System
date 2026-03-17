@@ -12,7 +12,17 @@ import {
   type StorageProvider,
 } from "@/lib/storage-config";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { 
+  DeleteObjectCommand, 
+  GetObjectCommand, 
+  HeadObjectCommand, 
+  PutObjectCommand, 
+  S3Client,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand
+} from "@aws-sdk/client-s3";
 
 export type UploadedAsset = {
   id?: string;
@@ -208,6 +218,63 @@ export async function createPresignedVideoUploadUrl(draft: VideoUploadDraft) {
   });
 
   return getSignedUrl(client, command, { expiresIn: 900 });
+}
+
+export async function startMultipartUpload(draft: VideoUploadDraft) {
+  const env = await assertR2Env(draft.tenantId);
+  const client = await createR2Client(draft.tenantId);
+
+  const command = new CreateMultipartUploadCommand({
+    Bucket: env.bucketName,
+    Key: draft.storageKey!,
+    ContentType: draft.fileType || "application/octet-stream",
+  });
+
+  const response = await client.send(command);
+  return response.UploadId;
+}
+
+export async function createPresignedPartUrl(draft: VideoUploadDraft, uploadId: string, partNumber: number) {
+  const env = await assertR2Env(draft.tenantId);
+  const client = await createR2Client(draft.tenantId);
+
+  const command = new UploadPartCommand({
+    Bucket: env.bucketName,
+    Key: draft.storageKey!,
+    UploadId: uploadId,
+    PartNumber: partNumber,
+  });
+
+  return getSignedUrl(client, command, { expiresIn: 900 });
+}
+
+export async function completeMultipartUpload(draft: VideoUploadDraft, uploadId: string, parts: { ETag: string; PartNumber: number }[]) {
+  const env = await assertR2Env(draft.tenantId);
+  const client = await createR2Client(draft.tenantId);
+
+  const command = new CompleteMultipartUploadCommand({
+    Bucket: env.bucketName,
+    Key: draft.storageKey!,
+    UploadId: uploadId,
+    MultipartUpload: {
+      Parts: parts.sort((a, b) => a.PartNumber - b.PartNumber),
+    },
+  });
+
+  await client.send(command);
+}
+
+export async function abortMultipartUpload(draft: VideoUploadDraft, uploadId: string) {
+  const env = await assertR2Env(draft.tenantId);
+  const client = await createR2Client(draft.tenantId);
+
+  const command = new AbortMultipartUploadCommand({
+    Bucket: env.bucketName,
+    Key: draft.storageKey!,
+    UploadId: uploadId,
+  });
+
+  await client.send(command);
 }
 
 export async function verifyUploadedVideoObject(draft: VideoUploadDraft) {

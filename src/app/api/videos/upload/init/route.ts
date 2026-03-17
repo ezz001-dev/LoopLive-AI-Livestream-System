@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createPresignedVideoUploadUrl, createVideoUploadDraft } from "@/lib/storage";
+import { createPresignedVideoUploadUrl, createVideoUploadDraft, startMultipartUpload } from "@/lib/storage";
 import { getStorageProvider } from "@/lib/storage-config";
 import { getCurrentTenantId } from "@/lib/tenant-context";
 import { checkPlanLimit } from "@/lib/limits";
@@ -39,15 +39,12 @@ export async function POST(req: Request) {
       });
     }
 
-    const uploadUrl = await createPresignedVideoUploadUrl(draft);
+    const uploadId = await startMultipartUpload(draft);
 
     return NextResponse.json({
-      uploadStrategy: "direct-r2",
+      uploadStrategy: "multipart-r2",
       storageProvider: draft.storageProvider,
-      uploadUrl,
-      uploadHeaders: {
-        "Content-Type": draft.fileType || "application/octet-stream",
-      },
+      uploadId,
       video: {
         id: draft.id,
         filename: draft.originalFilename,

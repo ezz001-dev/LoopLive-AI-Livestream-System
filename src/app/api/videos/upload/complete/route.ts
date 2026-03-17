@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyUploadedVideoObject } from "@/lib/storage";
+import { verifyUploadedVideoObject, completeMultipartUpload } from "@/lib/storage";
 import { getCurrentTenantId } from "@/lib/tenant-context";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +26,16 @@ export async function POST(req: Request) {
       publicUrl: body.public_url ? String(body.public_url) : null,
     } as const;
 
+    const { uploadId, parts } = body;
+
     if (videoDraft.storageProvider === "r2") {
-      await verifyUploadedVideoObject(videoDraft);
+      if (uploadId && parts && Array.isArray(parts)) {
+        // Complete MPU session
+        await completeMultipartUpload(videoDraft, uploadId, parts);
+      } else {
+        // Fallback or verification for single PutObject if not MPU
+        await verifyUploadedVideoObject(videoDraft);
+      }
     }
 
     const savedVideo = await (prisma.videos as any).create({

@@ -6,28 +6,6 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/context/ToastContext";
 import { logger } from "@/lib/logger";
 
-type UploadInitResponse =
-  | {
-      uploadStrategy: "server-proxy";
-      storageProvider: "local" | "r2";
-    }
-  | {
-      uploadStrategy: "direct-r2";
-      storageProvider: "local" | "r2";
-      uploadUrl: string;
-      uploadHeaders: Record<string, string>;
-      video: {
-        id: string;
-        filename: string;
-        file_type: string;
-        file_size: string;
-        storage_provider: "local" | "r2";
-        storage_key: string | null;
-        file_path: string;
-        public_url: string | null;
-      };
-    };
-
 export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { success, error: toastError } = useToast();
   const [file, setFile] = useState<File | null>(null);
@@ -50,7 +28,6 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       formData.append("file", selectedFile);
 
       const xhr = new XMLHttpRequest();
-
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100);
@@ -77,31 +54,64 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       xhr.send(formData);
     });
 
-  const uploadDirectToR2 = (init: Extract<UploadInitResponse, { uploadStrategy: "direct-r2" }>, selectedFile: File) =>
-    new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
+  const uploadMultipartToR2 = async (init: any, selectedFile: File) => {
+    const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+    const totalChunks = Math.ceil(selectedFile.size / CHUNK_SIZE);
+    const uploadedParts: { ETag: string; PartNumber: number }[] = [];
 
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          setUploadProgress(percent);
-        }
-      };
+    for (let i = 0; i < totalChunks; i++) {
+        const partNumber = i + 1;
+        setStatusText(`Uploading Part ${partNumber}/${totalChunks}...`);
 
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-          return;
-        }
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, selectedFile.size);
+        const chunk = selectedFile.slice(start, end);
 
-        reject(new Error(`R2 upload failed with status ${xhr.status}`));
-      };
+        // 1. Get presigned URL for this part
+        const partRes = await fetch("/api/videos/upload/part", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                video: init.video,
+                uploadId: init.uploadId,
+                partNumber,
+            }),
+        });
+        const partData = await partRes.json();
+        if (!partRes.ok || !partData.uploadUrl) throw new Error(partData.error || "Failed to get part upload URL");
 
-      xhr.onerror = () => reject(new Error("Network error while uploading to R2"));
-      xhr.open("PUT", init.uploadUrl);
-      Object.entries(init.uploadHeaders).forEach(([key, value]) => xhr.setRequestHeader(key, value));
-      xhr.send(selectedFile);
-    });
+        // 2. Upload the chunk
+        const etag = await new Promise<string>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const etagStr = xhr.getResponseHeader("ETag");
+                    if (etagStr) {
+                        resolve(etagStr.replace(/"/g, ""));
+                    } else {
+                        reject(new Error("No ETag returned from R2"));
+                    }
+                } else {
+                    reject(new Error(`Failed to upload part ${partNumber}`));
+                }
+            };
+            xhr.onerror = () => reject(new Error(`Network error on part ${partNumber}`));
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const chunkPercent = (event.loaded / event.total);
+                    const overallPercent = Math.round(((i + chunkPercent) / totalChunks) * 100);
+                    setUploadProgress(overallPercent);
+                }
+            };
+            xhr.open("PUT", partData.uploadUrl);
+            xhr.send(chunk);
+        });
+
+        uploadedParts.push({ ETag: etag, PartNumber: partNumber });
+    }
+
+    return uploadedParts;
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,17 +137,20 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
         throw new Error(initData.error || "Failed to initialize upload");
       }
 
-      const uploadInit = initData as UploadInitResponse;
+      const uploadInit = initData as any;
 
-      if (uploadInit.uploadStrategy === "direct-r2") {
-        setStatusText("Uploading Directly to R2...");
-        await uploadDirectToR2(uploadInit, file);
+      if (uploadInit.uploadStrategy === "multipart-r2") {
+        const parts = await uploadMultipartToR2(uploadInit, file);
 
-        setStatusText("Finalizing Metadata...");
+        setStatusText("Finalizing Upload...");
         const completeRes = await fetch("/api/videos/upload/complete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(uploadInit.video),
+          body: JSON.stringify({
+            ...uploadInit.video,
+            uploadId: uploadInit.uploadId,
+            parts,
+          }),
         });
         const completeData = await completeRes.json();
 
@@ -160,9 +173,9 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       logger.error(`Upload failed: ${error.message}`, {
         component: "UploadVideoModal",
         metadata: {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
+          fileName: file?.name,
+          fileSize: file?.size,
+          fileType: file?.type,
           stack: error.stack
         }
       });
@@ -200,7 +213,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
               <>
                 <Upload size={28} className="text-slate-600 mb-3 md:mb-4" />
                 <p className="text-xs md:text-sm text-slate-400">Drag & drop your video or click to browse</p>
-                <p className="text-[9px] md:text-[10px] text-slate-600 mt-2 uppercase tracking-widest">Max 2GB</p>
+                <p className="text-[9px] md:text-[10px] text-slate-600 mt-2 uppercase tracking-widest">Max 2GB+</p>
               </>
             )}
           </div>
