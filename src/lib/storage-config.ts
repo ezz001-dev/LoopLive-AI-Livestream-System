@@ -24,7 +24,7 @@ export async function getStorageProvider(tenantId?: string): Promise<StorageProv
       return (settings.storage_provider.toLowerCase() === "r2" ? "r2" : "local") as StorageProvider;
     }
   }
-  const provider = (process.env.STORAGE_PROVIDER || "local").toLowerCase();
+  const provider = (process.env.STORAGE_PROVIDER || (process.env.R2_ACCESS_KEY_ID ? "r2" : "local")).toLowerCase();
   return provider === "r2" ? "r2" : "local";
 }
 
