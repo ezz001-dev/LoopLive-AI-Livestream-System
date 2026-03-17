@@ -1,10 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, X, RefreshCw, FileVideo } from "lucide-react";
+import { Upload, X, RefreshCw, FileVideo, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/context/ToastContext";
 import { logger } from "@/lib/logger";
+
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
 
 export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { success, error: toastError } = useToast();
@@ -12,6 +16,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusText, setStatusText] = useState("Uploading File...");
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const router = useRouter();
 
   if (!isOpen) return null;
@@ -20,6 +25,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
     setUploading(false);
     setUploadProgress(0);
     setStatusText("Uploading File...");
+    setErrorDetail(null);
   };
 
   const uploadViaServerProxy = (selectedFile: File) =>
@@ -54,60 +60,109 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       xhr.send(formData);
     });
 
+  const uploadChunkWithRetry = async (
+    url: string, 
+    chunk: Blob, 
+    partNumber: number, 
+    totalChunks: number,
+    onProgress: (loaded: number, total: number) => void
+  ): Promise<string> => {
+    let attempt = 0;
+    while (attempt < MAX_RETRIES) {
+      try {
+        return await new Promise<string>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.timeout = 120000; // 2 minutes timeout for a single 10MB chunk
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              const etag = xhr.getResponseHeader("ETag")?.replace(/"/g, "");
+              if (etag) resolve(etag);
+              else reject(new Error("No ETag in response"));
+            } else {
+              reject(new Error(`Server returned status ${xhr.status}`));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network error"));
+          xhr.ontimeout = () => reject(new Error("Request timed out"));
+          
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              onProgress(event.loaded, event.total);
+            }
+          };
+
+          xhr.open("PUT", url);
+          xhr.send(chunk);
+        });
+      } catch (err: any) {
+        attempt++;
+        if (attempt >= MAX_RETRIES) throw err;
+        
+        const delay = RETRY_DELAY_MS * attempt;
+        setStatusText(`Retrying part ${partNumber} (Attempt ${attempt + 1}/${MAX_RETRIES})...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+    throw new Error(`Failed after ${MAX_RETRIES} attempts`);
+  };
+
   const uploadMultipartToR2 = async (init: any, selectedFile: File) => {
-    const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
     const totalChunks = Math.ceil(selectedFile.size / CHUNK_SIZE);
     const uploadedParts: { ETag: string; PartNumber: number }[] = [];
 
+    logger.info(`Starting Multipart Upload`, {
+        component: "UploadVideoModal",
+        metadata: { fileName: selectedFile.name, fileSize: selectedFile.size, totalChunks }
+    });
+
     for (let i = 0; i < totalChunks; i++) {
-        const partNumber = i + 1;
-        setStatusText(`Uploading Part ${partNumber}/${totalChunks}...`);
+      const partNumber = i + 1;
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, selectedFile.size);
+      const chunk = selectedFile.slice(start, end);
 
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, selectedFile.size);
-        const chunk = selectedFile.slice(start, end);
+      setStatusText(`Uploading Part ${partNumber}/${totalChunks}...`);
 
-        // 1. Get presigned URL for this part
-        const partRes = await fetch("/api/videos/upload/part", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                video: init.video,
-                uploadId: init.uploadId,
-                partNumber,
-            }),
-        });
-        const partData = await partRes.json();
-        if (!partRes.ok || !partData.uploadUrl) throw new Error(partData.error || "Failed to get part upload URL");
+      // 1. Get presigned URL
+      const partRes = await fetch("/api/videos/upload/part", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video: init.video,
+          uploadId: init.uploadId,
+          partNumber,
+        }),
+      });
 
-        // 2. Upload the chunk
-        const etag = await new Promise<string>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    const etagStr = xhr.getResponseHeader("ETag");
-                    if (etagStr) {
-                        resolve(etagStr.replace(/"/g, ""));
-                    } else {
-                        reject(new Error("No ETag returned from R2"));
-                    }
-                } else {
-                    reject(new Error(`Failed to upload part ${partNumber}`));
-                }
-            };
-            xhr.onerror = () => reject(new Error(`Network error on part ${partNumber}`));
-            xhr.upload.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const chunkPercent = (event.loaded / event.total);
-                    const overallPercent = Math.round(((i + chunkPercent) / totalChunks) * 100);
-                    setUploadProgress(overallPercent);
-                }
-            };
-            xhr.open("PUT", partData.uploadUrl);
-            xhr.send(chunk);
-        });
+      const partData = await partRes.json();
+      if (!partRes.ok || !partData.uploadUrl) {
+        throw new Error(partData.error || `Failed to get URL for part ${partNumber}`);
+      }
 
-        uploadedParts.push({ ETag: etag, PartNumber: partNumber });
+      // 2. Upload with Retry
+      const etag = await uploadChunkWithRetry(
+        partData.uploadUrl, 
+        chunk, 
+        partNumber, 
+        totalChunks,
+        (loaded, total) => {
+          const chunkProgress = loaded / total;
+          const overallProgress = Math.round(((i + chunkProgress) / totalChunks) * 100);
+          setUploadProgress(overallProgress);
+        }
+      );
+
+      uploadedParts.push({ ETag: etag, PartNumber: partNumber });
+      
+      // Periodical success logs for visibility
+      if (partNumber % 5 === 0 || partNumber === totalChunks) {
+          logger.info(`Uploaded part ${partNumber}/${totalChunks}`, {
+              component: "UploadVideoModal",
+              metadata: { uploadId: init.uploadId, partNumber }
+          });
+      }
     }
 
     return uploadedParts;
@@ -119,9 +174,11 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
 
     setUploading(true);
     setUploadProgress(0);
+    setErrorDetail(null);
     setStatusText("Preparing Upload...");
 
     try {
+      // 1. Init
       const initRes = await fetch("/api/videos/upload/init", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,9 +190,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
       });
 
       const initData = await initRes.json();
-      if (!initRes.ok) {
-        throw new Error(initData.error || "Failed to initialize upload");
-      }
+      if (!initRes.ok) throw new Error(initData.error || "Failed to initialize upload");
 
       const uploadInit = initData as any;
 
@@ -152,34 +207,40 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
             parts,
           }),
         });
-        const completeData = await completeRes.json();
 
-        if (!completeRes.ok) {
-          throw new Error(completeData.error || "Failed to finalize video upload");
-        }
+        const completeData = await completeRes.json();
+        if (!completeRes.ok) throw new Error(completeData.error || "Failed to finalize upload");
+
+        logger.info(`Upload completed successfully`, {
+            component: "UploadVideoModal",
+            metadata: { videoId: completeData.id, fileName: file.name }
+        });
       } else {
         setStatusText("Uploading via Server...");
         await uploadViaServerProxy(file);
       }
 
+      success("Video Berhasil!", `${file.name} telah ditambahkan ke library.`);
       resetState();
       setFile(null);
       onClose();
       router.refresh();
-      success("Video Berhasil!", `${file.name} telah ditambahkan ke library.`);
     } catch (error: any) {
-      toastError("Upload Gagal", error.message || "Unknown error");
-      // Report to Ops Console
-      logger.error(`Upload failed: ${error.message}`, {
+      console.error("Upload process error:", error);
+      const msg = error.message || "Unknown error";
+      setErrorDetail(msg);
+      toastError("Upload Gagal", msg);
+      
+      logger.error(`Upload failed: ${msg}`, {
         component: "UploadVideoModal",
         metadata: {
           fileName: file?.name,
           fileSize: file?.size,
-          fileType: file?.type,
-          stack: error.stack
+          stack: error.stack,
+          statusText
         }
       });
-      resetState();
+      setUploading(false); // keep state but allow retry
     }
   };
 
@@ -198,7 +259,10 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
             <input
               type="file"
               accept="video/*"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                  setFile(e.target.files?.[0] || null);
+                  setErrorDetail(null);
+              }}
               className="absolute inset-0 opacity-0 cursor-pointer"
             />
             {file ? (
@@ -207,30 +271,42 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
                      <FileVideo size={24} />
                   </div>
                   <p className="text-xs md:text-sm font-medium text-slate-200 truncate max-w-[180px] md:max-w-[200px]">{file.name}</p>
-                  <p className="text-[9px] md:text-[10px] text-slate-500 uppercase tracking-widest">Selected</p>
+                  <p className="text-[9px] md:text-[10px] text-slate-500 uppercase tracking-widest">
+                      {(file.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
                </div>
             ) : (
               <>
                 <Upload size={28} className="text-slate-600 mb-3 md:mb-4" />
                 <p className="text-xs md:text-sm text-slate-400">Drag & drop your video or click to browse</p>
-                <p className="text-[9px] md:text-[10px] text-slate-600 mt-2 uppercase tracking-widest">Max 2GB+</p>
+                <p className="text-[9px] md:text-[10px] text-slate-600 mt-2 uppercase tracking-widest">Support Large Files (&gt;1GB)</p>
               </>
             )}
           </div>
 
           {uploading && (
-            <div className="space-y-2">
+            <div className="space-y-3">
                 <div className="flex items-center justify-between text-[9px] md:text-[10px] font-bold uppercase tracking-widest">
-                <span className="text-slate-500">{statusText}</span>
-                <span className="text-blue-400">{uploadProgress}%</span>
-              </div>
-              <div className="h-1.5 md:h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-300 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
+                    <span className="text-slate-400 animate-pulse">{statusText}</span>
+                    <span className="text-blue-400">{uploadProgress}%</span>
+                </div>
+                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                        className="h-full bg-blue-500 transition-all duration-300 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
+                        style={{ width: `${uploadProgress}%` }}
+                    />
+                </div>
             </div>
+          )}
+
+          {errorDetail && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex gap-3 text-red-400 animate-in slide-in-from-top-2">
+                  <AlertCircle size={20} className="shrink-0" />
+                  <div className="space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wider">Upload Terhenti</p>
+                      <p className="text-xs leading-relaxed opacity-80">{errorDetail}</p>
+                  </div>
+              </div>
           )}
 
           <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
@@ -244,7 +320,7 @@ export default function UploadVideoModal({ isOpen, onClose }: { isOpen: boolean;
              </button>
              <button
                type="submit"
-               disabled={!file || uploading}
+               disabled={!file || (uploading && uploadProgress < 100)}
                className="order-1 sm:order-2 flex-[2] py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-600/20 active:scale-95 text-xs md:text-sm flex items-center justify-center gap-2"
              >
                {uploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
