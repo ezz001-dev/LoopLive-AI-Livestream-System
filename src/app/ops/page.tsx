@@ -54,6 +54,9 @@ export default async function OpsPage() {
         include: {
             tenant: {
                 select: { name: true, slug: true }
+            },
+            user: {
+                select: { display_name: true, email: true }
             }
         }
     }),
@@ -271,6 +274,11 @@ export default async function OpsPage() {
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                         {log.tenant?.name || "Global"}
                       </span>
+                      {log.user && (
+                        <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">
+                          • {log.user.display_name || log.user.email}
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-600 font-mono">
                          {log.component || "N/A"}
                       </span>

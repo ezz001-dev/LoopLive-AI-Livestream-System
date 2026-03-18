@@ -384,6 +384,7 @@ model invitations {
 model tenant_logs {
   id         String   @id @default(uuid())
   tenant_id  String?
+  user_id    String?
   level      String   @default("error") // error, warn, info
   message    String   @db.Text
   stack      String?  @db.Text
@@ -392,8 +393,10 @@ model tenant_logs {
   created_at DateTime @default(now())
 
   tenant tenants? @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user   users?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   @@index([tenant_id])
+  @@index([user_id])
   @@index([level])
   @@index([created_at])
 }

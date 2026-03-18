@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthSession } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +13,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
+    const session = await getAuthSession();
+    const userId = session?.userId;
+
     const log = await (prisma as any).tenant_logs.create({
       data: {
-        tenant_id: tenantId || null,
+        tenant_id: tenantId || session?.tenantId || null,
+        user_id: userId || null,
         level: level || "error",
         message,
         stack: stack || null,
@@ -43,6 +48,9 @@ export async function GET(req: NextRequest) {
             include: {
                 tenant: {
                     select: { name: true, slug: true }
+                },
+                user: {
+                    select: { display_name: true, email: true }
                 }
             }
         });
