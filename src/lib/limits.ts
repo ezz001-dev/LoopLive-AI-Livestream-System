@@ -12,7 +12,12 @@ export type PlanLimits = {
 
 type BasePlanLimits = Omit<PlanLimits, 'planName'>;
 
-export const PLANS: Record<string, BasePlanLimits> = {
+/**
+ * BUG-10 FIX: PLANS hardcode is kept ONLY as a last-resort fallback.
+ * The primary source of truth is the `plans` table in the database.
+ * Changing plan limits in the Ops Console now takes effect immediately.
+ */
+const PLANS_FALLBACK: Record<string, BasePlanLimits> = {
     "free_trial": {
         maxActiveStreams: 1,
         maxStorageGB: 2,
@@ -47,37 +52,42 @@ export const PLANS: Record<string, BasePlanLimits> = {
     }
 };
 
+// Keep PLANS exported for backward compatibility with any code referencing it
+export const PLANS = PLANS_FALLBACK;
+
 /**
  * Resolves the current limits for a tenant based on their active subscription.
+ * Always reads from the `plans` DB table as primary source of truth.
  */
 export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
     const subscription = await (prisma as any).subscriptions.findFirst({
         where: { tenant_id: tenantId, status: { in: ["active", "trialing"] } },
-        include: { plan: true },
         orderBy: { created_at: "desc" }
     });
 
     const planCode = subscription?.plan_code || "free_trial";
-    const baseLimits: PlanLimits = { 
-        planName: subscription?.plan?.name || (planCode === "free_trial" ? "Free Trial" : planCode),
-        ...(PLANS[planCode] || PLANS["free_trial"]) 
+
+    // BUG-10: Always load plan from DB first — this is the single source of truth.
+    // This ensures changes made via Ops Console take effect immediately.
+    const dbPlan = await (prisma as any).plans.findUnique({
+        where: { code: planCode }
+    });
+
+    // Fall back to hardcode only if the plan doesn't exist in DB at all
+    const fallback = PLANS_FALLBACK[planCode] || PLANS_FALLBACK["free_trial"];
+
+    const baseLimits: PlanLimits = {
+        planName: dbPlan?.name || planCode,
+        maxActiveStreams: dbPlan?.max_active_streams ?? fallback.maxActiveStreams,
+        maxStorageGB: dbPlan?.max_storage_gb ?? fallback.maxStorageGB,
+        maxAiResponsesPerDay: dbPlan?.max_ai_responses_day ?? fallback.maxAiResponsesPerDay,
+        maxScheduledSessions: dbPlan?.max_scheduled_sessions ?? fallback.maxScheduledSessions,
+        maxTeamMembers: dbPlan?.max_team_members ?? fallback.maxTeamMembers,
+        canUseCustomVoices: dbPlan?.can_use_custom_voices ?? fallback.canUseCustomVoices,
     };
 
-    // If we have a DB plan record, use its values
-    if (subscription?.plan) {
-        const dbPlan = subscription.plan;
-        baseLimits.maxActiveStreams = dbPlan.max_active_streams ?? baseLimits.maxActiveStreams;
-        baseLimits.maxStorageGB = dbPlan.max_storage_gb ?? baseLimits.maxStorageGB;
-        baseLimits.maxAiResponsesPerDay = dbPlan.max_ai_responses_day ?? baseLimits.maxAiResponsesPerDay;
-        baseLimits.maxScheduledSessions = dbPlan.max_scheduled_sessions ?? baseLimits.maxScheduledSessions;
-        baseLimits.maxTeamMembers = dbPlan.max_team_members ?? baseLimits.maxTeamMembers;
-        baseLimits.canUseCustomVoices = dbPlan.can_use_custom_voices ?? baseLimits.canUseCustomVoices;
-    }
-
-    // Apply dynamic trial overrides if applicable (only if on free_trial and NOT specifically managed in plans table)
-    // Note: If free_trial is in the plans table, the logic above already handled it.
-    // This part is kept for backward compatibility with the trial settings in system_settings.
-    if (planCode === "free_trial" && !subscription?.plan) {
+    // Apply dynamic trial overrides from system_settings (only if no DB plan found)
+    if (planCode === "free_trial" && !dbPlan) {
         try {
             const settings = await (prisma as any).system_settings.findFirst();
             if (settings) {

@@ -191,6 +191,41 @@ async function startScheduler() {
     setInterval(async () => {
         await checkAllSchedules();
     }, CHECK_INTERVAL);
+
+    // BUG-11 FIX: Run log retention cleanup once per day
+    await cleanupOldLogs();
+    setInterval(async () => {
+        await cleanupOldLogs();
+    }, 24 * 60 * 60 * 1000); // Every 24 hours
+}
+
+/**
+ * BUG-11 FIX: Deletes tenant_logs and usage_records older than LOG_RETENTION_DAYS.
+ * Prevents these tables from growing unbounded in production.
+ */
+const LOG_RETENTION_DAYS = 30;
+
+async function cleanupOldLogs() {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - LOG_RETENTION_DAYS);
+
+    try {
+        const deletedLogs = await (prisma as any).tenant_logs.deleteMany({
+            where: { created_at: { lt: cutoff } }
+        });
+
+        const deletedUsage = await (prisma as any).usage_records.deleteMany({
+            where: { created_at: { lt: cutoff } }
+        });
+
+        if (deletedLogs.count > 0 || deletedUsage.count > 0) {
+            console.log(
+                `[Scheduler][Cleanup] Removed ${deletedLogs.count} old log entries and ${deletedUsage.count} old usage records older than ${LOG_RETENTION_DAYS} days.`
+            );
+        }
+    } catch (error: any) {
+        console.error("[Scheduler][Cleanup] Failed to clean up old logs:", error.message);
+    }
 }
 
 startScheduler();
