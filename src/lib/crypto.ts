@@ -11,7 +11,7 @@ const AUTH_TAG_LENGTH = 16;
 const MASTER_KEY = process.env.MASTER_ENCRYPTION_KEY || "default-32-character-encryption-key-!!";
 
 if (process.env.NODE_ENV === "production" && (!process.env.MASTER_ENCRYPTION_KEY || process.env.MASTER_ENCRYPTION_KEY.length < 32)) {
-  console.error("FATAL: MASTER_ENCRYPTION_KEY is missing or too short in production!");
+  throw new Error("FATAL: MASTER_ENCRYPTION_KEY is missing or too short in production! Set a 32+ character secret in your .env file.");
 }
 
 /**

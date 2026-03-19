@@ -50,13 +50,12 @@ export async function POST(req: Request) {
     });
     
     // Set HTTP-only cookie
-    // Note: 'secure' is false for now to support non-SSL VPS setups. 
-    // In production with SSL, this should be true.
+    // 'secure: true' ensures the cookie is only sent over HTTPS in production.
     response.cookies.set({
       name: "auth_token",
       value: token,
       httpOnly: true,
-      secure: false, // Changed from production check to false for easier VPS setup
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days

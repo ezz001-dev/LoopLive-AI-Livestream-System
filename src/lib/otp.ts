@@ -1,4 +1,5 @@
 import Redis from "ioredis";
+import crypto from "crypto";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const redis = new Redis(redisUrl);
@@ -6,7 +7,9 @@ const redis = new Redis(redisUrl);
 const OTP_EXPIRY_SECONDS = 300; // 5 minutes
 
 export function generateOTP(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // Use cryptographically secure random bytes instead of Math.random()
+  const num = crypto.randomBytes(3).readUIntBE(0, 3) % 900000 + 100000;
+  return num.toString();
 }
 
 export async function storeOTP(email: string, otp: string) {

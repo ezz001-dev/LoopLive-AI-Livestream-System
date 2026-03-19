@@ -147,7 +147,7 @@ export async function POST(req: Request) {
             name: "auth_token",
             value: token,
             httpOnly: true,
-            secure: false, // development/vps non-ssl support
+            secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
             path: "/",
             maxAge: 60 * 60 * 24 * 7,
