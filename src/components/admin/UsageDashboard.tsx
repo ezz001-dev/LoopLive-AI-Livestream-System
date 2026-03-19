@@ -60,8 +60,8 @@ export default function UsageDashboard() {
   const metrics = [
     { label: "Respon AI", key: "ai_responses", icon: MessageSquare, color: "text-cyan-400" },
     { label: "Detik TTS", key: "tts_seconds", icon: Volume2, color: "text-rose-400" },
-    { label: "Penyimpanan (MB)", key: "storage_mb", icon: HardDrive, color: "text-amber-400" },
-    { label: "Jam Streaming", key: "stream_hours", icon: Activity, color: "text-emerald-400" },
+    { label: "Penyimpanan (GB)", key: "storage_gb", icon: HardDrive, color: "text-amber-400" },
+    { label: "Menit Streaming", key: "stream_minutes", icon: Activity, color: "text-emerald-400" },
   ];
 
   return (

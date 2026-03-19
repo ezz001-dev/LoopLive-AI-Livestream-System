@@ -46,6 +46,7 @@ model users {
 
   tenants    tenant_users[]
   audit_logs audit_logs[]
+  tenant_logs tenant_logs[]
 }
 
 model tenant_users {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyUploadedVideoObject, completeMultipartUpload } from "@/lib/storage";
 import { getCurrentTenantId } from "@/lib/tenant-context";
+import { recordUsage } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -51,6 +52,16 @@ export async function POST(req: Request) {
         public_url: videoDraft.publicUrl,
       },
     });
+
+    // Record storage usage in GB
+    const fileSizeBytes = Number(videoDraft.fileSize);
+    if (fileSizeBytes > 0) {
+      const fileSizeGb = fileSizeBytes / (1024 * 1024 * 1024);
+      await recordUsage(tenantId, "storage_gb", fileSizeGb, {
+        videoId: savedVideo.id,
+        filename: videoDraft.originalFilename,
+      });
+    }
 
     return NextResponse.json({
       ...savedVideo,

@@ -4,6 +4,7 @@ import { workerManager } from "@/lib/worker-manager";
 import { getTenantScopedLiveSession, getLiveSessionTenantId } from "@/lib/tenant-context";
 import { logAudit } from "@/lib/audit";
 import { getAuthSession } from "@/lib/auth-session";
+import { recordUsage } from "@/lib/usage";
 import Redis from "ioredis";
 
 export const dynamic = "force-dynamic";
@@ -35,14 +36,26 @@ export async function POST(
             return NextResponse.json({ error: "Live session not found or access denied" }, { status: 404 });
         }
 
-        // 1. Update status to IDLE
+        // 1. Update status to IDLE and capture previous LIVE start time
+        const prevSession = await prisma.live_sessions.findUnique({ where: { id }, select: { updated_at: true } });
         await prisma.live_sessions.update({
             where: { id },
             data: { status: "IDLE" }
         });
 
-        // --- Audit Log ---
+        // Record stream minutes
         const tenantId = await getLiveSessionTenantId(id);
+        if (prevSession?.updated_at) {
+            const streamMinutes = (Date.now() - new Date(prevSession.updated_at).getTime()) / 60000;
+            if (streamMinutes > 0 && tenantId) {
+                await recordUsage(tenantId, "stream_minutes", streamMinutes, {
+                    sessionId: id,
+                    sessionTitle: session.title,
+                });
+            }
+        }
+
+        // --- Audit Log ---
         const authSession = await getAuthSession();
         await logAudit({
             tenantId: tenantId || undefined,
