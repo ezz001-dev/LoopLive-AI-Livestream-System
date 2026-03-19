@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth-bridge";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "default_super_secret_dev_key_123");
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
         const { email, password, name, workspaceName, otp } = await req.json();
 

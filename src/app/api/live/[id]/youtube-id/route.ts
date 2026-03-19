@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTenantScopedLiveSession } from "@/lib/tenant-context";
 import Redis from "ioredis";
@@ -15,7 +15,7 @@ const redisPub = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
  * Can be called while the stream is LIVE to switch to a new YouTube video ID.
  */
 export async function PATCH(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

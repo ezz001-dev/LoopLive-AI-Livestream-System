@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStorageProvider, isR2StorageEnabled } from "@/lib/storage-config";
 import { uploadVideoAsset } from "@/lib/storage";
@@ -26,7 +26,7 @@ function serializeVideo(video: {
   };
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const tenantId = await getCurrentTenantId();
     const contentType = req.headers.get("content-type") || "";

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createPresignedVideoUploadUrl, createVideoUploadDraft, startMultipartUpload } from "@/lib/storage";
 import { getStorageProvider } from "@/lib/storage-config";
 import { getCurrentTenantId } from "@/lib/tenant-context";
@@ -7,7 +7,7 @@ import { checkPlanLimit } from "@/lib/limits";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const tenantId = await getCurrentTenantId();
     const { filename, fileType, fileSize } = await req.json();

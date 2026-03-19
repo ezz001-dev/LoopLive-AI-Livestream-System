@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
 import { getYouTubeLiveVideoId } from "@/lib/youtube-detect";
@@ -17,7 +17,7 @@ async function getTenantSettings(tenantId: string) {
 }
 
 export async function POST(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

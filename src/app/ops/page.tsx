@@ -5,6 +5,8 @@ import Link from "next/link";
 import PlatformConfig from "@/components/ops/PlatformConfig";
 import { DollarSign } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function OpsPage() {
   const [
     tenantCount,

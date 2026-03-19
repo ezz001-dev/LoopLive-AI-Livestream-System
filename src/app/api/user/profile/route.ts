@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth-session";
 import { prisma } from "@/lib/prisma";
 
@@ -29,7 +29,7 @@ export async function GET() {
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const session = await getAuthSession();
     if (!session || !session.userId) {

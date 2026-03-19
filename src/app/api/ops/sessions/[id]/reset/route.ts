@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
 import { logAudit } from "@/lib/audit";
@@ -7,7 +7,7 @@ import { getAuthSession } from "@/lib/auth-session";
 export const dynamic = "force-dynamic";
 
 export async function POST(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

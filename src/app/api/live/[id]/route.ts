@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTenantScopedLiveSession } from "@/lib/tenant-context";
 
@@ -8,7 +8,7 @@ export const fetchCache = "force-no-store";
 // In Next.js App Router API, we need to export async function based on HTTP Verb
 // with the second argument typing the dynamic route segment params.
 export async function GET(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
   ) {
   try {
@@ -37,7 +37,7 @@ export async function GET(
 }
 
 export async function DELETE(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
   ) {
   try {
@@ -66,7 +66,7 @@ export async function DELETE(
 }
 
 export async function PATCH(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
   ) {
   try {

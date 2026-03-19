@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { deleteStoredVideoAsset } from "@/lib/storage";
 import { getTenantScopedVideo } from "@/lib/tenant-context";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

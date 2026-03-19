@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenantId } from "@/lib/tenant-context";
 import { generateEmbedding, splitText } from "@/lib/vector-store";
@@ -34,7 +34,7 @@ export async function GET() {
  * Upload a new Knowledge Base document (Plain text for now).
  * Performs splitting and embedding generation synchronously for small docs.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
         const tenantId = await getCurrentTenantId();
         const { title, content } = await req.json();

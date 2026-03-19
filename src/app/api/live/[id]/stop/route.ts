@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { workerManager } from "@/lib/worker-manager";
 import { getTenantScopedLiveSession, getLiveSessionTenantId } from "@/lib/tenant-context";
@@ -10,7 +10,7 @@ import Redis from "ioredis";
 export const dynamic = "force-dynamic";
 
 export async function POST(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

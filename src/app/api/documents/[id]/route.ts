@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentTenantId } from "@/lib/tenant-context";
 
@@ -7,12 +7,12 @@ import { getCurrentTenantId } from "@/lib/tenant-context";
  * Remove a document and its chunks.
  */
 export async function DELETE(
-    req: Request,
-    { params }: { params: { id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const tenantId = await getCurrentTenantId();
-        const { id } = params;
+        const { id } = await params;
 
         // Verify ownership
         const doc = await (prisma as any).documents.findFirst({

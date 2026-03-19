@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createPresignedPartUrl } from "@/lib/storage";
 import { getCurrentTenantId } from "@/lib/tenant-context";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const tenantId = await getCurrentTenantId();
     const { video, uploadId, partNumber } = await req.json();

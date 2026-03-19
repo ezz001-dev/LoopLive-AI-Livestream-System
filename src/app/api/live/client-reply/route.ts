@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthSession } from "@/lib/auth-session";
 import Redis from "ioredis";
 
 const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379");
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const session = await getAuthSession();
     if (!session) {
