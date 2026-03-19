@@ -46,7 +46,8 @@ export default function SettingsPage() {
     yt_cookie: "",
     app_base_url: "http://localhost:3000",
     scheduler_api_key: "looplive-scheduler-internal-key",
-    use_client_side_ai: false
+    use_client_side_ai: false,
+    is_subscriber: false
   });
 
   const [soundEvents, setSoundEvents] = useState<SoundEvent[]>([]);
@@ -301,15 +302,22 @@ export default function SettingsPage() {
                   <h3 className="text-xl font-bold text-white">API Keys</h3>
                 </div>
                 
-                <div className="flex items-center gap-3 bg-slate-950/50 p-2 rounded-2xl border border-slate-800">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 ml-2">Aktifkan Fitur BYOK</span>
-                    <button 
-                         onClick={() => setSettings({...settings, use_client_side_ai: !settings.use_client_side_ai})}
-                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${settings.use_client_side_ai ? 'bg-blue-600' : 'bg-slate-700'}`}
-                    >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.use_client_side_ai ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
+                {settings.is_subscriber ? (
+                  <div className="flex items-center gap-3 bg-slate-950/50 p-2 rounded-2xl border border-slate-800">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 ml-2">Aktifkan Fitur BYOK</span>
+                      <button 
+                           onClick={() => setSettings({...settings, use_client_side_ai: !settings.use_client_side_ai})}
+                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${settings.use_client_side_ai ? 'bg-blue-600' : 'bg-slate-700'}`}
+                      >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.use_client_side_ai ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-amber-500/10 px-4 py-2 rounded-2xl border border-amber-500/20">
+                    <ShieldCheck size={16} className="text-amber-500" />
+                    <span className="text-[10px] uppercase font-bold text-amber-500">Upgrade to unlock BYOK</span>
+                  </div>
+                )}
               </div>
 
               {!settings.use_client_side_ai ? (

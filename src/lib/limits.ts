@@ -205,3 +205,18 @@ export async function checkPlanLimit(
 
     return { allowed: true };
 }
+
+/**
+ * Checks if a tenant has any active PAID subscription (not free trial).
+ */
+export async function isPaidSubscriber(tenantId: string): Promise<boolean> {
+    const subscription = await (prisma as any).subscriptions.findFirst({
+        where: { 
+            tenant_id: tenantId, 
+            status: { in: ["active", "trialing"] },
+            plan_code: { not: "free_trial" } 
+        }
+    });
+
+    return !!subscription;
+}

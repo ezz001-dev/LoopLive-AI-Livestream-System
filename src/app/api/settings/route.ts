@@ -4,6 +4,7 @@ import { getCurrentTenantId } from "@/lib/tenant-context";
 import { logAudit } from "@/lib/audit";
 import { getAuthSession } from "@/lib/auth-session";
 import { encrypt, decrypt } from "@/lib/crypto";
+import { isPaidSubscriber } from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export async function GET() {
       ...globalSettings,
       ...tenantSettings,
       ...secretMap,
+      is_subscriber: await isPaidSubscriber(tenantId)
     };
 
     return NextResponse.json(combinedSettings);
@@ -100,6 +102,14 @@ export async function PATCH(request: Request) {
       if (body[key] !== undefined) {
         secretsUpdate.push({ key, value: body[key] });
       }
+    }
+
+    // --- BYOK ENFORCEMENT ---
+    const isSubscriber = await isPaidSubscriber(tenantId);
+    if (body.use_client_side_ai === true && !isSubscriber) {
+        return NextResponse.json({ 
+            error: "Fitur BYOK hanya tersedia untuk pelanggan paket berbayar. Silakan upgrade paket Anda." 
+        }, { status: 403 });
     }
 
     // BYOK Enforcement: Never store AI keys on server if Zero-Knowledge mode is active
