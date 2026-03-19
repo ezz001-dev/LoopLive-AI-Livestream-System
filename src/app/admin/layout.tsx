@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard, User, Users, Menu, X, BookOpen } from "lucide-react";
+import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard, User, Users, Menu, X, BookOpen, AlertCircle } from "lucide-react";
 import TourGuide from "../../components/admin/TourGuide";
 import SubscriptionStatus from "../../components/SubscriptionStatus";
 
@@ -52,9 +52,22 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [canAccessOps, setCanAccessOps] = React.useState(false);
   const [userProfile, setUserProfile] = React.useState<any>(null);
+  const [subscription, setSubscription] = React.useState<any>(null);
 
   React.useEffect(() => {
     let active = true;
+    
+    async function loadSubscription() {
+      try {
+        const res = await fetch("/api/subs/status");
+        if (res.ok) {
+          const data = await res.json();
+          if (active) setSubscription(data.subscription);
+        }
+      } catch (err) {
+        console.error("Failed to load subscription in layout", err);
+      }
+    }
 
     async function loadSession() {
       try {
@@ -84,6 +97,7 @@ export default function AdminLayout({
 
     void loadSession();
     void loadProfile();
+    void loadSubscription();
 
     const handleProfileUpdate = () => void loadProfile();
     window.addEventListener("profile-updated", handleProfileUpdate);
@@ -214,6 +228,20 @@ export default function AdminLayout({
             </Link>
           </div>
         </header>
+
+        {/* Global Trial Alert */}
+        {subscription && (subscription.planCode === "free_trial" || subscription.planCode === "trial") && 
+          subscription.trialEndsAt && new Date(subscription.trialEndsAt) < new Date() && (
+          <div className="bg-red-600 px-4 md:px-8 py-2 text-white flex items-center justify-between text-xs font-bold animate-in slide-in-from-top duration-500">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={14} />
+              <span>Masa trial Anda telah habis. Streaming dan fitur utama telah dikunci.</span>
+            </div>
+            <Link href="/admin/billing" className="bg-white text-red-600 px-3 py-1 rounded-lg hover:bg-slate-100 transition-colors uppercase tracking-tight">
+              Upgrade Sekarang
+            </Link>
+          </div>
+        )}
 
         <div className="flex-1 p-4 md:p-8 pb-32 md:pb-32 lg:pb-16">
           {children}

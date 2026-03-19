@@ -60,12 +60,20 @@ export const PLANS = PLANS_FALLBACK;
  * Always reads from the `plans` DB table as primary source of truth.
  */
 export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
+    const now = new Date();
     const subscription = await (prisma as any).subscriptions.findFirst({
-        where: { tenant_id: tenantId, status: { in: ["active", "trialing"] } },
+        where: { 
+            tenant_id: tenantId, 
+            status: { in: ["active", "trialing"] },
+        },
         orderBy: { created_at: "desc" }
     });
 
-    const planCode = subscription?.plan_code || "free_trial";
+    const isTrial = subscription?.plan_code === "free_trial" || !subscription;
+    const trialExpired = isTrial && subscription?.trial_ends_at && new Date(subscription.trial_ends_at) < now;
+    
+    // If trial is expired, we default to a "blocked" version of free_trial
+    const planCode = trialExpired ? "expired" : (subscription?.plan_code || "free_trial");
 
     // BUG-10: Always load plan from DB first — this is the single source of truth.
     // This ensures changes made via Ops Console take effect immediately.
@@ -74,7 +82,19 @@ export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
     });
 
     // Fall back to hardcode only if the plan doesn't exist in DB at all
-    const fallback = PLANS_FALLBACK[planCode] || PLANS_FALLBACK["free_trial"];
+    let fallback = PLANS_FALLBACK[planCode] || PLANS_FALLBACK["free_trial"];
+    
+    // If explicitly expired, override limits to zero
+    if (planCode === "expired") {
+        fallback = {
+            maxActiveStreams: 0,
+            maxStorageGB: 0,
+            maxAiResponsesPerDay: 0,
+            maxScheduledSessions: 0,
+            maxTeamMembers: 1,
+            canUseCustomVoices: false,
+        };
+    }
 
     const baseLimits: PlanLimits = {
         planName: dbPlan?.name || planCode,
@@ -120,10 +140,11 @@ export async function checkPlanLimit(
         });
         
         if (activeCount >= limits.maxActiveStreams) {
-            return { 
-                allowed: false, 
-                message: `Anda telah mencapai batas maksimum ${limits.maxActiveStreams} stream aktif untuk paket ini. Silakan upgrade untuk menambah kapasitas.` 
-            };
+            const message = limits.planName === "expired" 
+                ? "Masa trial Anda telah habis. Silakan hubungi admin atau beli paket langganan untuk melanjutkan streaming."
+                : `Anda telah mencapai batas maksimum ${limits.maxActiveStreams} stream aktif untuk paket ini. Silakan upgrade untuk menambah kapasitas.`;
+            
+            return { allowed: false, message };
         }
     }
 
@@ -166,10 +187,11 @@ export async function checkPlanLimit(
         });
 
         if (sessionCount >= limits.maxScheduledSessions) {
-            return {
-                allowed: false,
-                message: `Anda telah mencapai batas maksimum ${limits.maxScheduledSessions} sesi/jadwal. Silakan hapus sesi lama atau upgrade paket Anda.`
-            };
+            const message = limits.planName === "expired"
+                ? "Masa trial Anda telah habis. Anda tidak dapat membuat sesi atau jadwal baru."
+                : `Anda telah mencapai batas maksimum ${limits.maxScheduledSessions} sesi/jadwal. Silakan hapus sesi lama atau upgrade paket Anda.`;
+            
+            return { allowed: false, message };
         }
     }
 
@@ -196,10 +218,11 @@ export async function checkPlanLimit(
         const totalGB = totalBytes / (1024 * 1024 * 1024);
 
         if (totalGB >= limits.maxStorageGB) {
-            return {
-                allowed: false,
-                message: `Anda telah mencapai batas storage ${limits.maxStorageGB}GB. Silakan hapus video lama untuk mengunggah yang baru.`
-            };
+            const message = limits.planName === "expired"
+                ? "Masa trial Anda telah habis. Kapasitas penyimpanan Anda telah dikunci. Silakan upgrade untuk menambah kapasitas."
+                : `Anda telah mencapai batas storage ${limits.maxStorageGB}GB. Silakan hapus video lama untuk mengunggah yang baru.`;
+            
+            return { allowed: false, message };
         }
     }
 

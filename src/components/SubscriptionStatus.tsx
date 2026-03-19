@@ -34,20 +34,21 @@ export default function SubscriptionStatus() {
     if (!data) return null;
 
     const isTrial = data.planCode === "free_trial" || data.planCode === "trial";
+    const trialExpired = isTrial && data.trialEndsAt && new Date(data.trialEndsAt) < new Date();
     const daysLeft = data.trialEndsAt ? 
         Math.ceil((new Date(data.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 
         0;
 
     return (
-        <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800/50 shadow-inner">
+        <div className={`p-4 rounded-2xl border ${trialExpired ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-900/50 border-slate-800/50'} shadow-inner`}>
             <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${trialExpired ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>
                     {isTrial ? <Clock size={20} /> : <Star size={20} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Plan: {data.planCode.replace('_', ' ')}</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest ${trialExpired ? 'text-red-400' : 'text-slate-500'}`}>Plan: {data.planCode.replace('_', ' ')}</p>
                     <p className="text-sm font-bold text-white truncate">
-                        {isTrial ? `${Math.max(0, daysLeft)} days trial left` : 'Active Membership'}
+                        {trialExpired ? "Trial Expired" : (isTrial ? `${Math.max(0, daysLeft)} days trial left` : 'Active Membership')}
                     </p>
                 </div>
             </div>
