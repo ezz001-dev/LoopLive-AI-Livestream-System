@@ -1,0 +1,198 @@
+# Task: Fix Prisma TypeError in Tenant Context
+
+- [x] Investigate [src/lib/tenant-context.ts](file:///e:/PROJECT/Next-JS/LoopLive-AI-Livestream-System/src/lib/tenant-context.ts) and [prisma/schema.prisma](file:///e:/PROJECT/Next-JS/LoopLive-AI-Livestream-System/prisma/schema.prisma) [id: 0]
+- [x] Fix the property name or initialization in [src/lib/tenant-context.ts](file:///e:/PROJECT/Next-JS/LoopLive-AI-Livestream-System/src/lib/tenant-context.ts) [id: 1]
+- [x] Notify user to regenerate Prisma Client [id: 3]
+- [x] Analyze SaaS implementation progress based on `docs/saas` [id: 4]
+- [x] Implement Tenant-Scoped Settings and Secrets [id: 5]
+    - [x] Update `prisma/schema.prisma` [id: 6]
+    - [x] Refactor `/api/settings` route [id: 7]
+    - [x] Create and run `scripts/backfill-settings.js` [id: 8]
+- [x] Refactor Scheduler and Session APIs for Multi-Tenancy [id: 12]
+    - [x] Update `src/lib/scheduler-worker.ts` [id: 13]
+    - [x] Refactor `/api/live/[id]/start` and `stop` routes [id: 14]
+- [x] Refactor Storage for Tenant-Specific Configuration [id: 15]
+    - [x] Update `src/lib/storage-config.ts` [id: 16]
+    - [x] Update `src/lib/storage.ts` [id: 17]
+- [x] Final Audit and Verification [id: 18]
+- [x] Implement Usage Metering and Audit Logs [id: 19]
+- [x] Improve Internal Ops Console [id: 23]
+- [x] Phase 3: Monetization, Self-Serve & Hardening
+    - [x] Implement self-serve registration & 14-day trial logic
+    - [x] Enforce plan limits (streams, storage, AI, team members)
+    - [x] Internal Ops Console: Session reset & Error feed
+    - [x] Stream Heartbeat mechanism (last-active monitoring)
+    - [x] Update SaaS implementation status document
+- [x] Phase 5: Reliability & Error Resolution
+    - [x] Restore lost dependencies in `package.json`
+    - [x] Re-run `npm install` and verify `node_modules`
+    - [x] Fix implicit `any` type errors in `SettingsPage`
+    - [x] Clean up remaining lint errors in Dashboard (React 19 Compatibility)
+    - [x] Fix syntax and TS errors in `ClientSessionPage.tsx`
+    - [x] Implement 2GB Trial Storage Limit
+        - [x] Update `PLANS` in `limits.ts`
+        - [x] Implement `maxStorageGB` check in `checkPlanLimit`
+        - [x] Enforce limit in `storage.ts` upload logic
+- [x] Phase 4: Commercialization & Security Hardening
+    - [x] Implement AES-256 secret encryption for `tenant_secrets`
+    - [x] Migrate existing secrets to encrypted format
+    - [x] Create Usage Analytics Dashboard (Charts)
+    - [ ] Integrate Payment Gateway (Stripe/Midtrans choice)
+    - [ ] Implement real Checkout and Webhook flows
+- [x] Phase 8: Bring Your Own Key (BYOK) - Client Side
+    - [x] Update `tenant_settings` with `use_client_side_ai` flag
+    - [x] Modify Settings UI to handle `localStorage` for sensitive keys
+    - [x] Implement client-side AI Handler in Live Dashboard
+    - [x] Create `/api/live/client-reply` secure submission endpoint
+    - [x] Update server workers to yield to client processing
+
+- [x] Phase 9: Email OTP Authentication
+    - [x] Install `nodemailer` and configure SMTP
+    - [x] Create `lib/email.ts` and `lib/otp.ts`
+    - [x] Implement `POST /api/auth/otp/send`
+    - [x] Update `POST /api/auth/register` to verify OTP
+
+- [x] Phase 10: Health Monitoring & Alerts
+    - [x] Implement zombie detection in `WorkerManager`
+    - [x] Create `lib/alerts.ts` for failure notifications
+    - [x] Implement `GET /api/live/[id]/health`
+    - [x] Update `ClientSessionPage` with health indicators
+
+- [x] Phase 11: Refining BYOK & API Key Management
+    - [x] Stop API key leakage in `SettingsPage.tsx`
+    - [x] Enforce BYOK in `PATCH /api/settings`
+    - [x] Improve UI feedback for locally managed keys
+    - [x] Implement usage tracking for client-side AI replies
+
+- [x] Phase 12: Deployment & DevOps
+    - [x] Debug SSH Handshake Failure [id: 26]
+    - [x] Verify GitHub Secrets configuration [id: 27]
+    - [x] Check VPS authorized_keys and permissions [id: 28]
+    - [x] Configure Nginx Reverse Proxy with SSL [id: 29]
+    - [x] Debug 502 Bad Gateway Error [id: 30]
+        - [x] Fix missing MASTER_ENCRYPTION_KEY on VPS [id: 31]
+
+- [x] Phase 13: Security Audit & Hardening
+    - [x] Audit Multi-Tenancy Isolation (Tenant ID leaks) [id: 32]
+    - [x] Review Authentication & Session Security [id: 33]
+    - [x] Implement API Rate Limiting (Prevent Brute Force) [id: 34]
+    - [x] Audit Secret Encryption & Storage [id: 35]
+    - [x] Verify CSRF/XSS Protections (Middleware & Headers) [id: 36]
+
+- [x] Phase 14: Payment Integration (Midtrans)
+    - [x] Design Subscription & Transaction Schema [id: 37]
+    - [x] Seed Initial Plans data (IDR/MYR) [id: 41]
+    - [x] Refactor `limits.ts` to use Dynamic Plans [id: 42]
+    - [x] Implement Midtrans SDK Helper [id: 43]
+    - [x] Create Ops Console Plan Management UI [id: 44]
+    - [x] Create Checkout API & Snap Integration [id: 45]
+    - [x] Create Webhook Handler for Payment Status [id: 46]
+    - [x] Create Subscription Management UI in Admin [id: 47]
+
+- [x] Phase 15: Team Management
+    - [x] Create Team Management API (GET/POST/DELETE) [id: 48]
+    - [x] Implement Team Management UI Page [id: 49]
+    - [x] Enforce Plan Limits for Team Members [id: 50]
+    - [x] Implement Role-Based Access Control (RBAC) basics [id: 51]
+    - [x] Implement Pending Invitations (Scenario 2) [id: 52]
+        - [x] Add `invitations` table to Prisma [id: 53]
+        - [x] Update Team API for invitations [id: 54]
+        - [x] Update Registration API for auto-link [id: 55]
+        - [x] Update UI to show Pending status [id: 56]
+- [ ] Phase 16: Security & Hardening [id: 57]
+    - [x] Audit database port exposure (Found leak in docker-compose) [id: 58]
+    - [x] Secure Postgres/Redis ports bound to localhost [id: 59]
+- [x] Phase 17: Ops Console - Plan Management Enhancements [id: 60]
+    - [x] Implement Add Plan feature in Ops Console [id: 61]
+    - [x] Implement Plan Activation/Deactivation toggle [id: 62]
+- [x] Phase 18: Video Library - Add Video Fix [id: 63]
+    - [x] Create Client-side Upload Component (VideosGrid) for Video Library [id: 64]
+    - [x] Integrate Upload Component into Videos Page [id: 65]
+- [x] Phase 19: UI Refinement - Premium Modals [id: 66]
+    - [x] Create Premium Modal/Toast Component [id: 67]
+    - [x] Replace `alert()` with Premium Modal in Plans page [id: 68]
+    - [x] Replace `alert()` with Premium Modal in other admin pages [id: 69]
+- [x] Phase 20: UI Refinement - Premium Confirmation Modals [id: 70]
+    - [x] Create Premium ConfirmModal Component [id: 71]
+    - [x] Replace `confirm()` and `alert()` in VideoAssetCard [id: 72]
+    - [x] Replace `confirm()` and `alert()` in LiveSessionActions [id: 73]
+    - [x] Refine Session delete modal with title and better styling [id: 75]
+    - [x] Replace `confirm()` in EditSessionModal [id: 74]
+
+- [x] Phase 21: Modal Stacking Context Fix
+    - [x] Implement Portal in `ConfirmModal` to prevent Clipping [id: 76]
+    - [x] Verify fix across all instances [id: 77]
+
+- [x] Phase 22: Responsive Design Optimization [id: 77]
+    - [x] Implement Mobile Sidebar with Hamburger Menu [id: 78]
+    - [x] Make Sessions and Teams tables scrollable on mobile [id: 79]
+    - [x] Adjust Modals (Create/Upload/Confirm) for small screens [id: 80]
+    - [x] Fix Billing pricing grid for mobile [id: 81]
+    - [x] Final verification on various breakpoints [id: 82]
+    - [x] Fix mobile scroll clipping in Admin Layout (final fix with dvh) [id: 83]
+    - [x] Fix tablet scroll clipping in Admin Layout [id: 84]
+- [ ] Phase 23: Nginx Security Hardening [id: 85]
+    - [x] Draft recommended Nginx security headers [id: 86]
+    - [x] Update Nginx configuration on server [id: 87]
+    - [x] Fix CSP violation for Cloudflare Insights [id: 89]
+    - [x] Debug "y.map is not a function" in CreateSessionModal [id: 90]
+    - [ ] Verify headers using security audit tools [id: 88]
+- [ ] Phase 24: R2 Storage & Upload Fixes [id: 91]
+    - [x] Fix CSP violation for Cloudflare R2 storage [id: 92]
+    - [x] Debug "e is not a function" in UploadVideoModal [id: 93]
+- [ ] Phase 25: CSP Media & Socket Connectivity [id: 94]
+    - [x] Update CSP for media-src (Video/Audio/Data URIs) [id: 95]
+    - [x] Fix Socket.io connection URL and connect-src [id: 96]
+- [ ] Phase 26: Tenant Error Logging (Ops) [id: 100]
+    - [x] Draft implementation plan for logging [id: 101]
+    - [x] Update Prisma schema with tenant_logs [id: 102]
+    - [x] Create /api/ops/logs endpoint [id: 103]
+    - [x] Implement src/lib/logger.ts [id: 104]
+    - [x] Integrate logger into UploadVideoModal [id: 105]
+    - [x] Update Ops Console page [id: 106]
+    - [ ] Verify error tracking [id: 107]
+- [ ] Phase 27: Large Video Upload Fix (>2GB) [id: 110]
+    - [x] Design Multipart Upload (MPU) workflow [id: 111]
+    - [x] Implement MPU support in src/lib/storage.ts [id: 112]
+    - [x] Update /api/videos/upload/init for MPU [id: 113]
+    - [x] Create /api/videos/upload/part endpoint [id: 114]
+    - [x] Update /api/videos/upload/complete for MPU [id: 115]
+    - [x] Refactor UploadVideoModal for chunking [id: 116]
+    - [x] Verify 2GB+ uploads on mobile [id: 117]
+- [x] Phase 28: Detailed Ops Logging (User Context) [id: 120]
+    - [x] Update Prisma schema with user_id in tenant_logs [id: 121]
+    - [x] Update /api/ops/logs to capture user context [id: 122]
+    - [x] Update Ops Console UI to display user information [id: 123]
+
+- [x] Phase 29: AI Knowledge Base (RAG - Retrieval Augmented Generation) [id: 130]
+    - [x] Create `documents` and `document_chunks` tables in Prisma [id: 131]
+    - [x] Implement Document Upload API (PDF/Text) [id: 132]
+    - [x] Build Vector Embedding pipeline (OpenAI/Gemini) [id: 133]
+    - [x] Integrate Vector Search into AI response generation [id: 134]
+    - [x] Create KB Management UI in Admin [id: 135]
+
+- [ ] Phase 30: Multi-Platform Simulcast [id: 140]
+    - [ ] Create `live_destinations` table in Prisma [id: 141]
+    - [ ] Update Live Session UI to support multiple keys [id: 142]
+    - [ ] Update `WorkerManager` for FFmpeg `-f tee` muxer support [id: 143]
+    - [ ] Implement per-destination status monitoring [id: 144]
+
+- [ ] Phase 31: Real-time Overlay System [id: 150]
+    - [ ] Design Overlay Template System (HTML/CSS based) [id: 151]
+    - [ ] Implement FFmpeg `overlay` filter with dynamic content [id: 152]
+    - [ ] Create Overlay Preview in Admin Dashboard [id: 153]
+
+- [ ] Phase 32: AI voice Cloning [id: 160]
+    - [ ] Integrate ElevenLabs API provider [id: 161]
+    - [ ] Implement Voice Clone upload and management [id: 162]
+    - [ ] Add voice selection to Session & Tenant settings [id: 163]
+
+- [ ] Phase 33: AI Moderation & Engagement [id: 170]
+    - [ ] Implement Sentiment Analysis for incoming chat [id: 171]
+    - [ ] Build Automated Ban/Warn system [id: 172]
+    - [ ] Create Auto-Engagement templates (Stickers/Greetings) [id: 173]
+
+- [ ] Phase 34: Commercial Ops (Promo & Retention) [id: 180]
+    - [ ] Implement Voucher/Coupon system [id: 181]
+    - [ ] Create User Retention Dashboard (Churn analysis) [id: 182]
+    - [ ] Implement Automated Email Marketing (Nodemailer/Loops) [id: 183]

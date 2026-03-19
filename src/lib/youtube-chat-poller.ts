@@ -68,7 +68,7 @@ async function startPoller(liveSessionId: string, youtubeVideoId: string) {
         const mc = await Masterchat.init(youtubeVideoId, { mode: "live" });
         activePollers.set(liveSessionId, mc);
 
-        mc.on("chat", async (chat: any) => {
+        (mc as any).on("chat", async (chat: any) => {
             let messageText = "";
             if (chat.message && Array.isArray(chat.message)) {
                 messageText = chat.message.map((part: any) => part.text || "").join("");
@@ -109,6 +109,20 @@ async function startPoller(liveSessionId: string, youtubeVideoId: string) {
                 }));
             } catch (err: any) {
                 console.error("[YouTube-Poller] DB/Redis error:", err.message);
+            }
+        });
+
+        (mc as any).on("metadata", async (metadata: any) => {
+            const currentViewerCount = metadata.viewerCount || 0;
+            console.log(`[YouTube-Poller][Tenant:${tenantId}] Live Viewers for ${youtubeVideoId}: ${currentViewerCount}`);
+            
+            try {
+                await prisma.live_sessions.update({
+                    where: { id: liveSessionId },
+                    data: { viewer_count: currentViewerCount }
+                });
+            } catch (err: any) {
+                console.error("[YouTube-Poller] Failed to update viewer count:", err.message);
             }
         });
 

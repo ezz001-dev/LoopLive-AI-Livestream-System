@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { AudioEvent, shiftAudioEvent } from "@/lib/audio-event-manager";
 import path from "path";
 import { sendStreamFailureAlert } from "./alerts";
+import { recordUsage } from "./usage";
 
 type ActiveAudioBatch = {
   id: string;
@@ -31,6 +32,7 @@ type ManagedSession = {
   currentAudioEventTimer: NodeJS.Timeout | null;
   process: ChildProcess | null;
   lastHeartbeat: number;
+  usageTimer: NodeJS.Timeout | null;
 };
 
 const MAX_RESTART_ATTEMPTS = 10;
@@ -328,6 +330,7 @@ class WorkerManager {
       currentAudioEventTimer: null,
       process: null,
       lastHeartbeat: Date.now(),
+      usageTimer: null,
     };
 
     session.videoInput = videoInput;
@@ -535,6 +538,10 @@ class WorkerManager {
 
     ffmpeg.stderr.on("data", () => {
       session.lastHeartbeat = Date.now();
+      // If we've been running successfully for 30 seconds after a restart, reset the attempts counter
+      if (session.restartAttempts > 0 && (Date.now() - session.lastHeartbeat) > 30000) {
+        session.restartAttempts = 0;
+      }
     });
 
     ffmpeg.on("error", (error) => {
@@ -542,8 +549,23 @@ class WorkerManager {
     });
 
     ffmpeg.on("close", (code, signal) => {
+      if (session.usageTimer) {
+        clearInterval(session.usageTimer);
+        session.usageTimer = null;
+      }
       void this.handleProcessClose(session, code, signal);
     });
+
+    // --- Usage Recording: 1 minute interval ---
+    if (!session.usageTimer) {
+      session.usageTimer = setInterval(async () => {
+        const tenantId = await this.getTenantIdForSession(session.liveId);
+        if (tenantId) {
+          console.log(`[WorkerManager][Usage] Recording 1 stream minute for tenant ${tenantId}`);
+          await recordUsage(tenantId, "stream_minutes", 1, { liveId: session.liveId });
+        }
+      }, 60000);
+    }
   }
 
   private respawnForAudioTransition(session: ManagedSession, reason: string) {
@@ -582,6 +604,15 @@ class WorkerManager {
     }
 
     if (session.manualStop) {
+      await this.updateSessionStatus(session.liveId, "IDLE");
+      this.cleanupSession(session.liveId);
+      return;
+    }
+
+    // FIX: If process exited normally (code 0) and it's NOT an intentional respawn (audio transition),
+    // it means FFmpeg finished its requested loops or the file ended.
+    if (code === 0 && !session.intentionalRespawn && session.loopMode === "count") {
+      console.log(`[WorkerManager] Session ${session.liveId} finished its requested loop count naturally. Stopping.`);
       await this.updateSessionStatus(session.liveId, "IDLE");
       this.cleanupSession(session.liveId);
       return;
@@ -630,7 +661,7 @@ class WorkerManager {
         where: { id: liveId },
         data: {
           status,
-          ...(status === "IDLE" ? { viewer_count: 0 } : {}),
+          viewer_count: 0
         },
       });
     } catch (error) {
@@ -663,6 +694,11 @@ class WorkerManager {
     if (session.audioPollTimer) {
       clearInterval(session.audioPollTimer);
       session.audioPollTimer = null;
+    }
+
+    if (session.usageTimer) {
+      clearInterval(session.usageTimer);
+      session.usageTimer = null;
     }
 
     void cleanupAudioBatchFiles(session.currentAudioBatch);
@@ -702,6 +738,11 @@ class WorkerManager {
     if (session.audioPollTimer) {
       clearInterval(session.audioPollTimer);
       session.audioPollTimer = null;
+    }
+
+    if (session.usageTimer) {
+      clearInterval(session.usageTimer);
+      session.usageTimer = null;
     }
 
     void cleanupAudioBatchFiles(session.currentAudioBatch);
