@@ -6,6 +6,7 @@ import { getLiveSessionTenantId } from "./tenant-context";
 import { decrypt } from "./crypto";
 import { recordUsage } from "./usage";
 import { checkPlanLimit } from "./limits";
+import { searchKnowledgeBase } from "./vector-store";
 import * as dotenv from "dotenv";
 import axios from "axios";
 
@@ -98,17 +99,34 @@ async function generateReply(session: any, viewerMessage: string, viewerId: stri
         .map((c: any) => `${c.viewer_id}: ${c.message}`)
         .join("\n");
 
+
+    // BUG-10 FIX: Search Knowledge Base for relevant context (RAG)
+    let knowledgeBaseContext = "";
+    try {
+        const kbResults = await searchKnowledgeBase(viewerMessage, tenantId, 3);
+        if (kbResults.length > 0) {
+            knowledgeBaseContext = kbResults
+                .map((res: any) => `Relevant Info from "${res.documentTitle}": ${res.content}`)
+                .join("\n\n");
+        }
+    } catch (err: any) {
+        console.error(`[AI-Worker] KB Search Error:`, err.message);
+    }
+
     const systemPrompt = `
 ${settings.ai_persona || "You are an AI Livestreamer."}
 Your tone for this session is: ${session.ai_tone}.
 AI Name: ${settings.ai_name}.
 Context for this stream: ${session.context_text || "General entertainment stream"}.
 
+${knowledgeBaseContext ? `--- KNOWLEDGE BASE CONTEXT ---\n${knowledgeBaseContext}\n------------------------------` : ""}
+
 Guidelines:
 - Keep responses concise and engaging for a live audience (max 2 sentences).
 - Respond to the latest message while being aware of the last few chats.
 - Never mention you are an AI unless asked directly.
 - Use the AI name "${settings.ai_name}" if you need to refer to yourself.
+${knowledgeBaseContext ? "- Use the KNOWLEDGE BASE CONTEXT provided above to answer specific questions accurately." : ""}
 
 Recent Chat History:
 ${recentChats}

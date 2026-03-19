@@ -33,6 +33,7 @@ model tenants {
   audit_logs     audit_logs[]
   invitations    invitations[]
   logs           tenant_logs[]
+  documents      documents[]
 }
 
 model users {
@@ -400,4 +401,34 @@ model tenant_logs {
   @@index([user_id])
   @@index([level])
   @@index([created_at])
+}
+
+model documents {
+  id               String          @id @default(uuid())
+  tenant_id        String
+  title            String
+  file_path        String?         // Path to the source file (e.g., in R2)
+  file_type        String?         // e.g., "pdf", "docx", "txt"
+  content          String?         @db.Text // Full extracted text if small
+  status           String          @default("processing") // processing, active, error
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+
+  tenant           tenants         @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  chunks           document_chunks[]
+
+  @@index([tenant_id])
+}
+
+model document_chunks {
+  id          String   @id @default(uuid())
+  document_id String
+  content     String   @db.Text
+  embedding   Json?    // Vector embedding (array of floats)
+  metadata    Json?    // Page number, index, etc.
+  created_at  DateTime @default(now())
+
+  document    documents @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([document_id])
 }

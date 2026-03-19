@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard, User, Users, Menu, X } from "lucide-react";
+import { LayoutDashboard, Video, Radio, Settings, LogOut, HelpCircle, Shield, CreditCard, User, Users, Menu, X, BookOpen } from "lucide-react";
 import TourGuide from "../../components/admin/TourGuide";
 import SubscriptionStatus from "../../components/SubscriptionStatus";
 
@@ -149,6 +149,7 @@ export default function AdminLayout({
           <NavLink href="/admin/live" id="tour-nav-live" icon={<Radio size={20} className="group-hover:scale-110 transition-transform" />} label="Sesi Live" />
           <NavLink href="/admin/team" icon={<Users size={20} className="group-hover:scale-110 transition-transform" />} label="Tim & Kolaborasi" />
           <NavLink href="/admin/billing" icon={<CreditCard size={20} className="group-hover:scale-110 transition-transform" />} label="Tagihan & Paket" />
+          <NavLink href="/admin/documents" icon={<BookOpen size={20} className="group-hover:scale-110 transition-transform" />} label="Knowledge Base" />
           <NavLink href="/admin/profile" icon={<User size={20} className="group-hover:scale-110 transition-transform" />} label="Profil Akun" />
           <NavLink href="/admin/settings" id="tour-nav-settings" icon={<Settings size={20} className="group-hover:scale-110 transition-transform" />} label="Pengaturan" />
           {canAccessOps && (
