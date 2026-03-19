@@ -572,7 +572,7 @@ class WorkerManager {
     if (session.intentionalRespawn) {
       session.intentionalRespawn = false;
       if (session.manualStop) {
-        await this.updateSessionStatus(session.liveId, "STOPPED");
+        await this.updateSessionStatus(session.liveId, "IDLE");
         this.cleanupSession(session.liveId);
         return;
       }
@@ -582,7 +582,7 @@ class WorkerManager {
     }
 
     if (session.manualStop) {
-      await this.updateSessionStatus(session.liveId, "STOPPED");
+      await this.updateSessionStatus(session.liveId, "IDLE");
       this.cleanupSession(session.liveId);
       return;
     }
@@ -615,7 +615,7 @@ class WorkerManager {
     session.restartTimer = setTimeout(() => {
       session.restartTimer = null;
       if (session.manualStop) {
-        void this.updateSessionStatus(session.liveId, "STOPPED");
+        void this.updateSessionStatus(session.liveId, "IDLE");
         this.cleanupSession(session.liveId);
         return;
       }
@@ -624,13 +624,13 @@ class WorkerManager {
     }, delay);
   }
 
-  private async updateSessionStatus(liveId: string, status: "STOPPED" | "ERROR") {
+  private async updateSessionStatus(liveId: string, status: "IDLE" | "ERROR") {
     try {
       await prisma.live_sessions.update({
         where: { id: liveId },
         data: {
           status,
-          ...(status === "STOPPED" ? { viewer_count: 0 } : {}),
+          ...(status === "IDLE" ? { viewer_count: 0 } : {}),
         },
       });
     } catch (error) {

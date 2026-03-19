@@ -31,12 +31,37 @@ console.log("[Scheduler] Starting Multi-Schedule Worker (Platform Wide)...");
 
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-function getDayName(date: Date): string {
-    return DAYS[date.getDay()];
+/**
+ * BUG-05 FIX: Get the local day and time components for a given timezone.
+ * Previously used server's local time (e.g. UTC), which caused schedules set in
+ * Asia/Jakarta (UTC+7) to fire 7 hours early/late.
+ */
+function getLocalDateParts(date: Date, timezone: string): { dayName: string; hours: number; minutes: number } {
+    try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            weekday: 'long',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: false,
+        }).formatToParts(date);
+
+        const dayName = (parts.find(p => p.type === 'weekday')?.value || '').toLowerCase();
+        const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+        const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+        return { dayName, hours, minutes };
+    } catch {
+        // Fallback to server local time if timezone is invalid
+        return {
+            dayName: DAYS[date.getDay()],
+            hours: date.getHours(),
+            minutes: date.getMinutes(),
+        };
+    }
 }
 
-function isTimeInRange(now: Date, startTime: string, endTime: string): boolean {
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+function isTimeInRange(hours: number, minutes: number, startTime: string, endTime: string): boolean {
+    const nowMinutes = hours * 60 + minutes;
     const [startH, startM] = startTime.split(':').map(Number);
     const [endH, endM] = endTime.split(':').map(Number);
     const startMinutes = startH * 60 + startM;
@@ -45,6 +70,7 @@ function isTimeInRange(now: Date, startTime: string, endTime: string): boolean {
     if (startMinutes <= endMinutes) {
         return nowMinutes >= startMinutes && nowMinutes < endMinutes;
     } else {
+        // Overnight range (e.g., 22:00 to 06:00)
         return nowMinutes >= startMinutes || nowMinutes < endMinutes;
     }
 }
@@ -54,6 +80,8 @@ function isSessionScheduledNow(sessionSchedules: any[], now: Date): boolean {
     if (activeSchedules.length === 0) return false;
 
     for (const schedule of activeSchedules) {
+        const timezone = schedule.timezone || 'Asia/Jakarta';
+
         if (schedule.schedule_type === 'one-time') {
             if (!schedule.scheduled_at) continue;
             const scheduleStart = new Date(schedule.scheduled_at);
@@ -77,8 +105,10 @@ function isSessionScheduledNow(sessionSchedules: any[], now: Date): boolean {
                 const repeatEnd = new Date(schedule.repeat_end_date);
                 if (now > repeatEnd) continue;
             }
-            const today = getDayName(now);
-            if (days.includes(today) && isTimeInRange(now, schedule.start_time, schedule.end_time)) {
+
+            // Use timezone-aware local time parts instead of server local time
+            const { dayName, hours, minutes } = getLocalDateParts(now, timezone);
+            if (days.includes(dayName) && isTimeInRange(hours, minutes, schedule.start_time, schedule.end_time)) {
                 return true;
             }
         }

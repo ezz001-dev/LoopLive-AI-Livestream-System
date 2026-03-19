@@ -148,8 +148,11 @@ export async function checkPlanLimit(
     }
 
     if (metric === "maxScheduledSessions") {
-        const sessionCount = await (prisma as any).live_sessions.count({
-            where: { tenant_id: tenantId }
+    const sessionCount = await (prisma as any).live_sessions.count({
+            where: {
+                tenant_id: tenantId,
+                status: { in: ["IDLE", "LIVE"] }
+            }
         });
 
         if (sessionCount >= limits.maxScheduledSessions) {

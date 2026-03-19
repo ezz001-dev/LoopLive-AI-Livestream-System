@@ -74,13 +74,13 @@ export async function POST(req: Request) {
                 }
             });
 
-            // Initialize Tenant Settings
+            // Initialize Tenant Settings — storage provider from env, fallback to local
             await tx.tenant_settings.create({
                 data: {
                     tenant_id: tenant.id,
                     ai_provider: "openai",
                     tts_provider: "openai",
-                    storage_provider: "local",
+                    storage_provider: process.env.STORAGE_PROVIDER || "local",
                 }
             });
 
