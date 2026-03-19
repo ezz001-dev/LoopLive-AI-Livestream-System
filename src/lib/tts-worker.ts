@@ -57,7 +57,7 @@ async function ttsWithOpenAI(text: string, filepath: string, apiKey: string) {
 
 async function ttsWithGemini(text: string, filepath: string, apiKey: string) {
     const geminiAI = new GoogleGenerativeAI(apiKey);
-    const model = geminiAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = geminiAI.getGenerativeModel({ model: "gemini-2.5-flash-tts" });
     
     const result = await model.generateContent({
         contents: [{ role: "user", parts: [{ text: text }] }],
@@ -67,7 +67,7 @@ async function ttsWithGemini(text: string, filepath: string, apiKey: string) {
             speechConfig: {
                 voiceConfig: {
                     prebuiltVoiceConfig: {
-                        voiceName: "aoede"
+                        voiceName: "Kore"
                     }
                 }
             }
@@ -85,10 +85,11 @@ async function ttsWithGemini(text: string, filepath: string, apiKey: string) {
 
 async function ttsWithEdge(text: string, filepath: string) {
     const tts = new EdgeTTS();
-    const voice = "en-US-AriaNeural"; 
+    // Default to Indonesian voice since the app is targeted at ID users
+    const voice = "id-ID-ArdiNeural"; 
     await tts.synthesize(text, voice);
-    const baseFilepath = filepath.replace(/\.mp3$/, '');
-    await tts.toFile(baseFilepath);
+    // Use full filepath directly
+    await tts.toFile(filepath);
 }
 
 let redisPub: Redis;

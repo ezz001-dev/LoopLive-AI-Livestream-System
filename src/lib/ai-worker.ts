@@ -233,7 +233,7 @@ async function startWorker() {
             if (tenantId) {
                 await recordUsage(tenantId, "ai_responses", 1, {
                     replyId: aiReply.id,
-                    provider: session.ai_provider, // Note: actually need to get this from settings if we want to be precise, but session context might have it depending on implementation. 
+                    provider: settings.ai_provider, 
                     liveId: liveId
                 });
             }
