@@ -110,7 +110,7 @@ export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
         maxScheduledSessions: dbPlan?.max_scheduled_sessions ?? fallback.maxScheduledSessions,
         maxTeamMembers: dbPlan?.max_team_members ?? fallback.maxTeamMembers,
         canUseCustomVoices: dbPlan?.can_use_custom_voices ?? fallback.canUseCustomVoices,
-        maxStreamMinutesPerDay: fallback.maxStreamMinutesPerDay,
+        maxStreamMinutesPerDay: dbPlan?.max_stream_minutes_per_day ?? fallback.maxStreamMinutesPerDay,
     };
 
     // Apply dynamic trial overrides from system_settings (only if no DB plan found)

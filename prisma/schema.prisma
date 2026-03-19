@@ -304,6 +304,8 @@ model plans {
   description           String?
   price_idr             Decimal  @db.Decimal(18, 2)
   price_myr             Decimal  @db.Decimal(18, 2)
+  original_price_idr    Decimal? @db.Decimal(18, 2)
+  original_price_myr    Decimal? @db.Decimal(18, 2)
   
   // Limits
   max_active_streams    Int      @default(1)
@@ -312,6 +314,7 @@ model plans {
   max_scheduled_sessions Int     @default(5)
   max_team_members      Int      @default(1)
   can_use_custom_voices Boolean  @default(false)
+  max_stream_minutes_per_day Int @default(-1)
   
   active                Boolean  @default(true)
   created_at            DateTime @default(now())

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Edit2, Save, X, Check, DollarSign, Activity, HardDrive, MessageSquare, Users, Mic } from "lucide-react";
+import { Plus, Edit2, Save, X, Check, DollarSign, Activity, HardDrive, MessageSquare, Users, Mic, Clock } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 
 interface Plan {
@@ -11,11 +11,14 @@ interface Plan {
     description: string | null;
     price_idr: number;
     price_myr: number;
+    original_price_idr: number | null;
+    original_price_myr: number | null;
     max_active_streams: number;
     max_storage_gb: number;
     max_ai_responses_day: number;
     max_scheduled_sessions: number;
     max_team_members: number;
+    max_stream_minutes_per_day: number;
     can_use_custom_voices: boolean;
     active: boolean;
 }
@@ -33,11 +36,14 @@ export default function PlansManagementPage() {
         description: "",
         price_idr: 0,
         price_myr: 0,
+        original_price_idr: null,
+        original_price_myr: null,
         max_active_streams: 1,
         max_storage_gb: 2,
         max_ai_responses_day: 100,
         max_scheduled_sessions: 5,
         max_team_members: 1,
+        max_stream_minutes_per_day: -1,
         can_use_custom_voices: false,
         active: true
     });
@@ -107,11 +113,14 @@ export default function PlansManagementPage() {
                 description: "",
                 price_idr: 0,
                 price_myr: 0,
+                original_price_idr: null,
+                original_price_myr: null,
                 max_active_streams: 1,
                 max_storage_gb: 2,
                 max_ai_responses_day: 100,
                 max_scheduled_sessions: 5,
                 max_team_members: 1,
+                max_stream_minutes_per_day: -1,
                 can_use_custom_voices: false,
                 active: true
             });
@@ -221,7 +230,7 @@ export default function PlansManagementPage() {
                             </div>
                             <div className="grid gap-6 sm:grid-cols-2">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Harga IDR</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Harga Promo IDR</label>
                                     <input 
                                         type="number" 
                                         value={addForm.price_idr}
@@ -230,12 +239,34 @@ export default function PlansManagementPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Harga MYR</label>
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Harga Coret IDR (Opsional)</label>
+                                    <input 
+                                        type="number" 
+                                        value={addForm.original_price_idr || ""}
+                                        onChange={(e) => setAddForm({...addForm, original_price_idr: e.target.value ? Number(e.target.value) : null})}
+                                        className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                                        placeholder="Misal: 150000"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid gap-6 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Harga Promo MYR</label>
                                     <input 
                                         type="number" 
                                         value={addForm.price_myr}
                                         onChange={(e) => setAddForm({...addForm, price_myr: Number(e.target.value)})}
                                         className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Harga Coret MYR (Opsional)</label>
+                                    <input 
+                                        type="number" 
+                                        value={addForm.original_price_myr || ""}
+                                        onChange={(e) => setAddForm({...addForm, original_price_myr: e.target.value ? Number(e.target.value) : null})}
+                                        className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                                        placeholder="Misal: 45"
                                     />
                                 </div>
                             </div>
@@ -247,6 +278,7 @@ export default function PlansManagementPage() {
                             <LimitInput label="AI Replies/Day" icon={<MessageSquare size={14} />} value={addForm.max_ai_responses_day} onChange={(v: number) => setAddForm({...addForm, max_ai_responses_day: v})} />
                             <LimitInput label="Sessions" icon={<Activity size={14} />} value={addForm.max_scheduled_sessions} onChange={(v: number) => setAddForm({...addForm, max_scheduled_sessions: v})} />
                             <LimitInput label="Team Size" icon={<Users size={14} />} value={addForm.max_team_members} onChange={(v: number) => setAddForm({...addForm, max_team_members: v})} />
+                            <LimitInput label="Stream Limit (Min/Day)" icon={<Clock size={14} />} value={addForm.max_stream_minutes_per_day} onChange={(v: number) => setAddForm({...addForm, max_stream_minutes_per_day: v})} note="-1 = unlimited" />
                             
                             <div className="space-y-3">
                                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -336,37 +368,85 @@ export default function PlansManagementPage() {
                                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
                                         <DollarSign size={12} className="text-rose-400" /> Price IDR (Indonesia)
                                     </label>
-                                    {editingId === plan.id ? (
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Rp</span>
-                                            <input 
-                                                type="number"
-                                                value={Number(editForm.price_idr)}
-                                                onChange={(e) => setEditForm({ ...editForm, price_idr: Number(e.target.value) })}
-                                                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-12 py-3 text-lg font-black text-white focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
-                                            />
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-bold text-slate-500 uppercase">Promo</p>
+                                            {editingId === plan.id ? (
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Rp</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={Number(editForm.price_idr)}
+                                                        onChange={(e) => setEditForm({ ...editForm, price_idr: Number(e.target.value) })}
+                                                        className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-12 py-3 text-lg font-black text-white focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="text-2xl font-black text-white">Rp {Number(plan.price_idr).toLocaleString('id-ID')}</p>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <p className="text-2xl font-black text-white">Rp {Number(plan.price_idr).toLocaleString('id-ID')}</p>
-                                    )}
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-bold text-slate-500 uppercase">Original (Coret)</p>
+                                            {editingId === plan.id ? (
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Rp</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={editForm.original_price_idr || ""}
+                                                        onChange={(e) => setEditForm({ ...editForm, original_price_idr: e.target.value ? Number(e.target.value) : null })}
+                                                        className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-12 py-3 text-lg font-black text-white focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                        placeholder="N/A"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="text-xl font-bold text-slate-500 line-through">
+                                                    {plan.original_price_idr ? `Rp ${Number(plan.original_price_idr).toLocaleString('id-ID')}` : "—"}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
                                         <DollarSign size={12} className="text-rose-400" /> Price MYR (Malaysia)
                                     </label>
-                                    {editingId === plan.id ? (
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">RM</span>
-                                            <input 
-                                                type="number"
-                                                value={Number(editForm.price_myr)}
-                                                onChange={(e) => setEditForm({ ...editForm, price_myr: Number(e.target.value) })}
-                                                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-12 py-3 text-lg font-black text-white focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
-                                            />
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-bold text-slate-500 uppercase">Promo</p>
+                                            {editingId === plan.id ? (
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">RM</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={Number(editForm.price_myr)}
+                                                        onChange={(e) => setEditForm({ ...editForm, price_myr: Number(e.target.value) })}
+                                                        className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-12 py-3 text-lg font-black text-white focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="text-2xl font-black text-white">RM {Number(plan.price_myr).toLocaleString('en-MY')}</p>
+                                            )}
                                         </div>
-                                    ) : (
-                                        <p className="text-2xl font-black text-white">RM {Number(plan.price_myr).toLocaleString('en-MY')}</p>
-                                    )}
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-bold text-slate-500 uppercase">Original (Coret)</p>
+                                            {editingId === plan.id ? (
+                                                <div className="relative">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">RM</span>
+                                                    <input 
+                                                        type="number"
+                                                        value={editForm.original_price_myr || ""}
+                                                        onChange={(e) => setEditForm({ ...editForm, original_price_myr: e.target.value ? Number(e.target.value) : null })}
+                                                        className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-12 py-3 text-lg font-black text-white focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                        placeholder="N/A"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <p className="text-xl font-bold text-slate-500 line-through">
+                                                    {plan.original_price_myr ? `RM ${Number(plan.original_price_myr).toLocaleString('en-MY')}` : "—"}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -407,7 +487,7 @@ export default function PlansManagementPage() {
                                 form={editForm}
                                 setForm={setEditForm}
                             />
-                            <LimitItem 
+                             <LimitItem 
                                 icon={<Users size={14} />} 
                                 label="Team Size" 
                                 value={plan.max_team_members} 
@@ -415,6 +495,16 @@ export default function PlansManagementPage() {
                                 field="max_team_members"
                                 form={editForm}
                                 setForm={setEditForm}
+                            />
+                            <LimitItem 
+                                icon={<Clock size={14} />} 
+                                label="Live Limit (Min)" 
+                                value={plan.max_stream_minutes_per_day === -1 ? "Untd" : plan.max_stream_minutes_per_day} 
+                                editing={editingId === plan.id}
+                                field="max_stream_minutes_per_day"
+                                form={editForm}
+                                setForm={setEditForm}
+                                note="-1 = unlimited"
                             />
                             
                             <div className="space-y-3">
@@ -457,21 +547,25 @@ interface LimitItemProps {
     field: keyof Plan;
     form: Partial<Plan>;
     setForm: (form: Partial<Plan>) => void;
+    note?: string;
 }
 
-function LimitItem({ icon, label, value, editing, field, form, setForm }: LimitItemProps) {
+function LimitItem({ icon, label, value, editing, field, form, setForm, note }: LimitItemProps) {
     return (
         <div className="space-y-3">
             <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
                 <span className="text-rose-400">{icon}</span> {label}
             </label>
             {editing ? (
-                <input 
-                    type="number"
-                    value={form[field] as number}
-                    onChange={(e) => setForm({ ...form, [field]: Number(e.target.value) })}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-lg font-black text-white focus:border-rose-500 focus:outline-none"
-                />
+                <div className="space-y-1">
+                    <input 
+                        type="number"
+                        value={form[field] as number}
+                        onChange={(e) => setForm({ ...form, [field]: Number(e.target.value) })}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2 text-lg font-black text-white focus:border-rose-500 focus:outline-none"
+                    />
+                    {note && <p className="text-[10px] text-slate-500 italic">{note}</p>}
+                </div>
             ) : (
                 <p className="text-2xl font-black text-slate-200">{String(value)}</p>
             )}
@@ -484,9 +578,10 @@ interface LimitInputProps {
     label: string;
     value: number | undefined;
     onChange: (v: number) => void;
+    note?: string;
 }
 
-function LimitInput({ icon, label, value, onChange }: LimitInputProps) {
+function LimitInput({ icon, label, value, onChange, note }: LimitInputProps) {
     return (
         <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -498,6 +593,7 @@ function LimitInput({ icon, label, value, onChange }: LimitInputProps) {
                 onChange={(e) => onChange(Number(e.target.value))}
                 className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
             />
+            {note && <p className="text-[10px] text-slate-500 italic px-1">{note}</p>}
         </div>
     );
 }

@@ -33,11 +33,14 @@ export async function POST(request: Request) {
                 description: data.description,
                 price_idr: data.price_idr,
                 price_myr: data.price_myr,
+                original_price_idr: data.original_price_idr,
+                original_price_myr: data.original_price_myr,
                 max_active_streams: data.max_active_streams,
                 max_storage_gb: data.max_storage_gb,
                 max_ai_responses_day: data.max_ai_responses_day,
                 max_scheduled_sessions: data.max_scheduled_sessions,
                 max_team_members: data.max_team_members,
+                max_stream_minutes_per_day: data.max_stream_minutes_per_day,
                 can_use_custom_voices: data.can_use_custom_voices,
                 active: data.active ?? true
             }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CreditCard, Zap, Check, ArrowRight, ShieldCheck, BarChart3, Settings, Loader2, MessageSquare, HardDrive, Users } from "lucide-react";
+import { CreditCard, Zap, Check, ArrowRight, ShieldCheck, BarChart3, Settings, Loader2, MessageSquare, HardDrive, Users, Clock } from "lucide-react";
 import UsageDashboard from "@/components/admin/UsageDashboard";
 import Script from "next/script";
 
@@ -12,11 +12,14 @@ interface Plan {
     description: string | null;
     price_idr: number;
     price_myr: number;
+    original_price_idr: number | null;
+    original_price_myr: number | null;
     max_active_streams: number;
     max_storage_gb: number;
     max_ai_responses_day: number;
     max_scheduled_sessions: number;
     max_team_members: number;
+    max_stream_minutes_per_day: number;
     can_use_custom_voices: boolean;
 }
 
@@ -180,13 +183,21 @@ export default function BillingPage() {
                                 </div>
                             )}
                             <h3 className="text-lg md:text-xl font-black text-white mb-1">{plan.name}</h3>
-                            <div className="flex items-baseline gap-1 mb-6 md:mb-8">
-                                <span className="text-2xl md:text-3xl font-black text-white">Rp {Number(plan.price_idr).toLocaleString('id-ID')}</span>
-                                <span className="text-slate-500 font-bold text-xs md:text-sm">/bln</span>
+                            <div className="mb-6 md:mb-8">
+                                {plan.original_price_idr && (
+                                    <p className="text-sm font-bold text-slate-500 line-through mb-1">
+                                        Rp {Number(plan.original_price_idr).toLocaleString('id-ID')}
+                                    </p>
+                                )}
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl md:text-3xl font-black text-white">Rp {Number(plan.price_idr).toLocaleString('id-ID')}</span>
+                                    <span className="text-slate-500 font-bold text-xs md:text-sm">/bln</span>
+                                </div>
                             </div>
 
                             <ul className="space-y-3 md:space-y-4 mb-8 md:mb-10 flex-1">
                                 <PlanFeature icon={<Zap />} text={`${plan.max_active_streams} Stream Aktif`} />
+                                <PlanFeature icon={<Clock />} text={plan.max_stream_minutes_per_day === -1 ? "Live Full 24/7 Unlimited" : `Live Limit: ${plan.max_stream_minutes_per_day} menit/hari`} />
                                 <PlanFeature icon={<MessageSquare />} text={`${plan.max_ai_responses_day} Respon AI/hari`} />
                                 <PlanFeature icon={<HardDrive />} text={`${plan.max_storage_gb}GB Penyimpanan`} />
                                 <PlanFeature icon={<Users />} text={`${plan.max_team_members} Anggota Tim`} />
