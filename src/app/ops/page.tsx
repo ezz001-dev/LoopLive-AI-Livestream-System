@@ -16,6 +16,7 @@ export default async function OpsPage() {
     recentAudits,
     usageStats,
     recentLogs,
+    allSubscriptions,
   ] = await Promise.all([
     (prisma as any).tenants.count(),
     (prisma as any).users.count(),
@@ -61,6 +62,22 @@ export default async function OpsPage() {
                 select: { display_name: true, email: true }
             }
         }
+    }),
+    // User management: tenants with their subscription & top user info
+    (prisma as any).tenants.findMany({
+      orderBy: { created_at: "desc" },
+      include: {
+        users: {
+          take: 1,
+          include: { user: { select: { email: true, display_name: true } } },
+          orderBy: { created_at: "asc" },
+          where: { role: "owner" },
+        },
+        subscriptions: {
+          take: 1,
+          orderBy: { created_at: "desc" },
+        },
+      },
     }),
   ]);
 
@@ -311,6 +328,88 @@ export default async function OpsPage() {
               <p className="text-sm text-slate-500 italic">No errors reported in the last cycle. System stable.</p>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* User Management Section */}
+      <section className="rounded-3xl border border-slate-800 bg-slate-900/40 p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-bold text-white">User Management</h3>
+            <p className="mt-1 text-sm text-slate-400">Status langganan dan trial seluruh pengguna platform.</p>
+          </div>
+          <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-300">
+            {allSubscriptions.length} workspace
+          </span>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-900/70 text-xs uppercase tracking-widest text-slate-500">
+              <tr>
+                <th className="px-5 py-4">Workspace / Owner</th>
+                <th className="px-5 py-4">Plan</th>
+                <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Trial / Berakhir</th>
+                <th className="px-5 py-4">Bergabung</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {allSubscriptions.map((t: any) => {
+                const sub = t.subscriptions?.[0];
+                const owner = t.users?.[0]?.user;
+                const isTrial = !sub || sub.plan_code === "free_trial";
+                const isExpired = isTrial && sub?.trial_ends_at && new Date(sub.trial_ends_at) < new Date();
+                const isPaid = sub && sub.plan_code !== "free_trial" && sub.status === "active";
+                const daysLeft = sub?.trial_ends_at
+                  ? Math.ceil((new Date(sub.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : null;
+
+                return (
+                  <tr key={t.id} className="group hover:bg-slate-800/30 transition-colors">
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-white">{t.name}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{owner?.email || "—"}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest ${
+                        isPaid
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                          : "border-blue-500/30 bg-blue-500/10 text-blue-300"
+                      }`}>
+                        {sub?.plan_code?.replace("_", " ") || "Free Trial"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest ${
+                        isExpired
+                          ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                          : isPaid
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                          : "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                      }`}>
+                        {isExpired ? "EXPIRED" : isPaid ? "ACTIVE" : "TRIALING"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-slate-400 text-xs">
+                      {isTrial && sub?.trial_ends_at
+                        ? isExpired
+                          ? <span className="text-rose-400 font-bold">Habis {new Date(sub.trial_ends_at).toLocaleDateString("id-ID")}</span>
+                          : <span className="text-amber-400">{daysLeft} hari lagi</span>
+                        : isPaid
+                        ? <span className="text-emerald-400">
+                            s/d {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString("id-ID") : "—"}
+                          </span>
+                        : "—"}
+                    </td>
+                    <td className="px-5 py-4 text-slate-500 text-xs">
+                      {new Date(t.created_at).toLocaleDateString("id-ID")}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

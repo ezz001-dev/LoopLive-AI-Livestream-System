@@ -5,6 +5,7 @@ import { AudioEvent, shiftAudioEvent } from "@/lib/audio-event-manager";
 import path from "path";
 import { sendStreamFailureAlert } from "./alerts";
 import { recordUsage } from "./usage";
+import { checkStreamTimeLimit } from "./limits";
 
 type ActiveAudioBatch = {
   id: string;
@@ -561,8 +562,39 @@ class WorkerManager {
       session.usageTimer = setInterval(async () => {
         const tenantId = await this.getTenantIdForSession(session.liveId);
         if (tenantId) {
-          console.log(`[WorkerManager][Usage] Recording 1 stream minute for tenant ${tenantId}`);
           await recordUsage(tenantId, "stream_minutes", 1, { liveId: session.liveId });
+          console.log(`[WorkerManager][Usage] Recorded 1 stream minute for tenant ${tenantId}. Session: ${session.liveId}`);
+
+          // --- Daily stream limit check: auto-stop if exceeded ---
+          const timeCheck = await checkStreamTimeLimit(tenantId);
+          if (!timeCheck.allowed) {
+            console.warn(
+              `[WorkerManager][Limit] Daily stream limit reached for tenant ${tenantId} (${timeCheck.minutesUsed}/${timeCheck.minutesLimit} min). Auto-stopping session ${session.liveId}.`
+            );
+            // Stop the FFmpeg process
+            this.stop(session.liveId);
+            // Update session status
+            await this.updateSessionStatus(session.liveId, "IDLE");
+            // Log to audit
+            try {
+              await (prisma as any).audit_logs.create({
+                data: {
+                  tenant_id: tenantId,
+                  actor_type: "system",
+                  action: "auto_stop_stream_limit",
+                  target_type: "live_session",
+                  target_id: session.liveId,
+                  metadata: {
+                    reason: "daily_stream_limit_reached",
+                    minutes_used: timeCheck.minutesUsed,
+                    minutes_limit: timeCheck.minutesLimit,
+                  },
+                },
+              });
+            } catch (e) {
+              console.error("[WorkerManager][Limit] Failed to write audit log for auto-stop:", e);
+            }
+          }
         }
       }, 60000);
     }

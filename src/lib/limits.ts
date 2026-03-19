@@ -8,6 +8,7 @@ export type PlanLimits = {
     maxScheduledSessions: number;
     maxTeamMembers: number;
     canUseCustomVoices: boolean;
+    maxStreamMinutesPerDay: number; // 0 = blocked, -1 = unlimited
 };
 
 type BasePlanLimits = Omit<PlanLimits, 'planName'>;
@@ -25,6 +26,7 @@ const PLANS_FALLBACK: Record<string, BasePlanLimits> = {
         maxScheduledSessions: 3,
         maxTeamMembers: 1,
         canUseCustomVoices: false,
+        maxStreamMinutesPerDay: 180, // 3 hours
     },
     "creator": {
         maxActiveStreams: 1,
@@ -33,6 +35,7 @@ const PLANS_FALLBACK: Record<string, BasePlanLimits> = {
         maxScheduledSessions: 5,
         maxTeamMembers: 2,
         canUseCustomVoices: false,
+        maxStreamMinutesPerDay: -1, // unlimited
     },
     "studio": {
         maxActiveStreams: 3,
@@ -41,6 +44,7 @@ const PLANS_FALLBACK: Record<string, BasePlanLimits> = {
         maxScheduledSessions: 20,
         maxTeamMembers: 5,
         canUseCustomVoices: true,
+        maxStreamMinutesPerDay: -1,
     },
     "agency": {
         maxActiveStreams: 10,
@@ -49,6 +53,7 @@ const PLANS_FALLBACK: Record<string, BasePlanLimits> = {
         maxScheduledSessions: 100,
         maxTeamMembers: 20,
         canUseCustomVoices: true,
+        maxStreamMinutesPerDay: -1,
     }
 };
 
@@ -93,6 +98,7 @@ export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
             maxScheduledSessions: 0,
             maxTeamMembers: 1,
             canUseCustomVoices: false,
+            maxStreamMinutesPerDay: 0,
         };
     }
 
@@ -104,6 +110,7 @@ export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
         maxScheduledSessions: dbPlan?.max_scheduled_sessions ?? fallback.maxScheduledSessions,
         maxTeamMembers: dbPlan?.max_team_members ?? fallback.maxTeamMembers,
         canUseCustomVoices: dbPlan?.can_use_custom_voices ?? fallback.canUseCustomVoices,
+        maxStreamMinutesPerDay: fallback.maxStreamMinutesPerDay,
     };
 
     // Apply dynamic trial overrides from system_settings (only if no DB plan found)
@@ -243,3 +250,54 @@ export async function isPaidSubscriber(tenantId: string): Promise<boolean> {
 
     return !!subscription;
 }
+
+/**
+ * Returns how many stream minutes a tenant has used today (midnight-to-midnight).
+ */
+export async function getStreamMinutesToday(tenantId: string): Promise<number> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const result = await (prisma as any).usage_records.aggregate({
+        where: {
+            tenant_id: tenantId,
+            metric: "stream_minutes",
+            created_at: { gte: startOfDay },
+        },
+        _sum: { quantity: true },
+    });
+
+    return Number(result._sum?.quantity || 0);
+}
+
+/**
+ * Checks if a tenant has exhausted their daily streaming allowance.
+ * Returns { allowed: boolean, minutesUsed: number, minutesLimit: number }
+ */
+export async function checkStreamTimeLimit(tenantId: string): Promise<{
+    allowed: boolean;
+    minutesUsed: number;
+    minutesLimit: number;
+    message?: string;
+}> {
+    const limits = await getTenantLimits(tenantId);
+
+    // -1 means unlimited (paid plans)
+    if (limits.maxStreamMinutesPerDay === -1) {
+        return { allowed: true, minutesUsed: 0, minutesLimit: -1 };
+    }
+
+    const minutesUsed = await getStreamMinutesToday(tenantId);
+
+    if (minutesUsed >= limits.maxStreamMinutesPerDay) {
+        return {
+            allowed: false,
+            minutesUsed,
+            minutesLimit: limits.maxStreamMinutesPerDay,
+            message: `Batas streaming harian (${limits.maxStreamMinutesPerDay} menit) telah tercapai untuk hari ini. Streaming dihentikan otomatis. Upgrade ke paket berbayar untuk streaming tanpa batas.`,
+        };
+    }
+
+    return { allowed: true, minutesUsed, minutesLimit: limits.maxStreamMinutesPerDay };
+}
+
