@@ -84,7 +84,6 @@ export default async function OpsPage() {
           orderBy: { created_at: "desc" },
           include: { plan: { select: { max_stream_minutes_per_day: true } } },
         },
-        max_stream_minutes_override: true,
       },
     }),
   ]);
