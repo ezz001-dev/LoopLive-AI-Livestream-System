@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import TenantStatusActions from "@/components/ops/TenantStatusActions";
 import Link from "next/link";
 import PlatformConfig from "@/components/ops/PlatformConfig";
-import { DollarSign } from "lucide-react";
+import { DollarSign, Clock } from "lucide-react";
+import TenantLimitAction from "@/components/ops/TenantLimitAction";
 
 export const dynamic = "force-dynamic";
 
@@ -23,15 +24,20 @@ export default async function OpsPage() {
     (prisma.live_sessions as any).count(),
     (prisma as any).tenants.findMany({
       orderBy: { created_at: "asc" },
-      include: {
-        _count: {
-          select: {
-            users: true,
-            videos: true,
-            live_sessions: true,
+      select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+          max_stream_minutes_override: true,
+          _count: {
+            select: {
+                users: true,
+                videos: true,
+                live_sessions: true,
+            },
           },
-        },
-      },
+      }
     }),
     (prisma as any).audit_logs.findMany({
       orderBy: { created_at: "desc" },
@@ -76,7 +82,9 @@ export default async function OpsPage() {
         subscriptions: {
           take: 1,
           orderBy: { created_at: "desc" },
+          include: { plan: { select: { max_stream_minutes_per_day: true } } },
         },
+        max_stream_minutes_override: true,
       },
     }),
   ]);
@@ -187,7 +195,7 @@ export default async function OpsPage() {
                   <th className="px-5 py-4">Workspace</th>
                   <th className="px-5 py-4">Status</th>
                   <th className="px-5 py-4">Users</th>
-                  <th className="px-5 py-4">Assets</th>
+                  <th className="px-5 py-4 text-right">Limit (Min)</th>
                   <th className="px-5 py-4 text-right">Support</th>
                 </tr>
               </thead>
@@ -212,7 +220,13 @@ export default async function OpsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4 text-sm text-slate-400">{tenant._count.users}</td>
-                    <td className="px-5 py-4 text-sm text-slate-400">{tenant._count.videos}</td>
+                    <td className="px-5 py-4 text-right">
+                       <TenantLimitAction 
+                          tenantId={tenant.id} 
+                          currentOverride={tenant.max_stream_minutes_override}
+                          planLimit={180} // Free trial default for guest view
+                       />
+                    </td>
                     <td className="px-5 py-4 text-right">
                       <TenantStatusActions
                         tenantId={tenant.id}
@@ -351,6 +365,7 @@ export default async function OpsPage() {
                 <th className="px-5 py-4">Plan</th>
                 <th className="px-5 py-4">Status</th>
                 <th className="px-5 py-4">Trial / Berakhir</th>
+                <th className="px-5 py-4 text-right">Live Limit</th>
                 <th className="px-5 py-4">Bergabung</th>
               </tr>
             </thead>
@@ -401,6 +416,13 @@ export default async function OpsPage() {
                             s/d {sub.current_period_end ? new Date(sub.current_period_end).toLocaleDateString("id-ID") : "—"}
                           </span>
                         : "—"}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                        <TenantLimitAction 
+                            tenantId={t.id} 
+                            currentOverride={t.max_stream_minutes_override}
+                            planLimit={sub?.plan?.max_stream_minutes_per_day ?? 180}
+                        />
                     </td>
                     <td className="px-5 py-4 text-slate-500 text-xs">
                       {new Date(t.created_at).toLocaleDateString("id-ID")}

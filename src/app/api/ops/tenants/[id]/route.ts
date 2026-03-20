@@ -66,15 +66,23 @@ export async function PATCH(
     try {
         const id = (await params).id;
         const body = await req.json();
-        const { status } = body;
+        const { status, max_stream_minutes_override } = body;
 
-        if (!["active", "suspended"].includes(status)) {
-            return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+        const updateData: any = {};
+        if (status) {
+            if (!["active", "suspended"].includes(status)) {
+                return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+            }
+            updateData.status = status;
+        }
+
+        if (max_stream_minutes_override !== undefined) {
+            updateData.max_stream_minutes_override = max_stream_minutes_override === "" ? null : parseInt(max_stream_minutes_override);
         }
 
         const updated = await (prisma as any).tenants.update({
             where: { id },
-            data: { status }
+            data: updateData
         });
 
         return NextResponse.json(updated);

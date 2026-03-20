@@ -32,6 +32,7 @@ model tenants {
   usage_records usage_records[]
   audit_logs     audit_logs[]
   invitations    invitations[]
+  max_stream_minutes_override Int?
   logs           tenant_logs[]
   documents      documents[]
 }

@@ -66,13 +66,19 @@ export const PLANS = PLANS_FALLBACK;
  */
 export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
     const now = new Date();
-    const subscription = await (prisma as any).subscriptions.findFirst({
-        where: { 
-            tenant_id: tenantId, 
-            status: { in: ["active", "trialing"] },
-        },
-        orderBy: { created_at: "desc" }
-    });
+    const [tenant, subscription] = await Promise.all([
+        (prisma as any).tenants.findUnique({
+            where: { id: tenantId },
+            select: { max_stream_minutes_override: true }
+        }),
+        (prisma as any).subscriptions.findFirst({
+            where: { 
+                tenant_id: tenantId, 
+                status: { in: ["active", "trialing"] },
+            },
+            orderBy: { created_at: "desc" }
+        })
+    ]);
 
     const isTrial = subscription?.plan_code === "free_trial" || !subscription;
     const trialExpired = isTrial && subscription?.trial_ends_at && new Date(subscription.trial_ends_at) < now;
@@ -110,7 +116,7 @@ export async function getTenantLimits(tenantId: string): Promise<PlanLimits> {
         maxScheduledSessions: dbPlan?.max_scheduled_sessions ?? fallback.maxScheduledSessions,
         maxTeamMembers: dbPlan?.max_team_members ?? fallback.maxTeamMembers,
         canUseCustomVoices: dbPlan?.can_use_custom_voices ?? fallback.canUseCustomVoices,
-        maxStreamMinutesPerDay: dbPlan?.max_stream_minutes_per_day ?? fallback.maxStreamMinutesPerDay,
+        maxStreamMinutesPerDay: tenant?.max_stream_minutes_override ?? dbPlan?.max_stream_minutes_per_day ?? fallback.maxStreamMinutesPerDay,
     };
 
     // Apply dynamic trial overrides from system_settings (only if no DB plan found)
